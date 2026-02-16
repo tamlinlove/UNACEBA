@@ -1,0 +1,65 @@
+from unaceba.task.environment import Environment
+from unaceba.examples.simple_grasp.simple_grasp_state import SimpleGraspState
+
+from pgmpy.factors.discrete.CPD import TabularCPD
+
+import numpy as np
+
+DEFAULT_STATE = {
+    # Environment Properties
+    "grasp_instruction":None,
+    "target_object":"bottle",
+    "target_object_confidence":None,
+    "object_distance":2.4,
+    # Task Properties
+    "grasp_strategy":None,
+    "grasp_succeeded":None,
+}
+
+# distance (close-far), grasp (close-general), object (cup-bottle-sunglasses)
+GRASP_SUCCESS_PROBS = [
+    [0.8,0.9,0.65,0.65,0.8,0.6,0.3,0.4,0.15,0.65,0.8,0.6],
+    [0.2,0.1,0.35,0.35,0.2,0.4,0.7,0.6,0.85,0.35,0.2,0.4]
+]
+
+class SimpleGraspEnvironment(Environment):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def get_default_state() -> dict:
+        return DEFAULT_STATE
+
+    def execute_grasp(self,state:SimpleGraspState) -> bool:
+        distance_threshold = 1
+        simple_distance = "close" if state.get_value("object_distance") <= distance_threshold else "far"
+        grasp = state.get_value("grasp_strategy")
+        target_object = state.get_value("target_object")
+
+        # TODO: pgmpy is not very efficient. If we can do without it, do it
+        grasp_success_cpd = TabularCPD(
+            "grasp_success",
+            2,
+            GRASP_SUCCESS_PROBS,
+            evidence=["distance","grasp","object"],
+            evidence_card=[2,2,3],
+            state_names={
+                "grasp_success":["success","failure"],
+                "distance":["close","far"],
+                "grasp":SimpleGraspState.get_ranges()["grasp_strategy"].values,
+                "object":SimpleGraspState.get_ranges()["target_object"].values,
+            }
+        )
+
+        p_success = grasp_success_cpd.get_value(
+            grasp_success="success",
+            distance=simple_distance,
+            grasp=grasp,
+            object=target_object
+        )
+        p_failure = 1 - p_success
+        
+        grasp_success = np.random.choice([True,False],p=[p_success,p_failure])
+        return grasp_success
+
+
