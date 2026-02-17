@@ -5,6 +5,8 @@ from pgmpy.factors.discrete.CPD import TabularCPD
 
 import numpy as np
 
+MAX_SEED = 1000000000
+
 DEFAULT_STATE = {
     # Environment Properties
     "grasp_instruction":None,
@@ -23,12 +25,30 @@ GRASP_SUCCESS_PROBS = [
 ]
 
 class SimpleGraspEnvironment(Environment):
-    def __init__(self):
+    def __init__(self,seed:int=0):
         super().__init__()
+        self.seed = seed
 
     @staticmethod
     def get_default_state() -> dict:
         return DEFAULT_STATE
+    
+    def robot_speak(self,text:str):
+        print(f"ROBOT SAYS: {text}")
+
+    def execute_handover(self,state:SimpleGraspState) -> bool:
+        text = f"Here is your item - {state.get_value("target_object")}"
+        self.robot_speak(text)
+
+        if state.get_value("grasp_succeeded"):
+            return True
+        return False
+
+    def execute_apologise(self,state:SimpleGraspState) -> bool:
+        text = f"Sorry, I couldn't bring your {state.get_value("target_object")}"
+        self.robot_speak(text)
+
+        return True
 
     def execute_grasp(self,state:SimpleGraspState) -> bool:
         distance_threshold = 1
@@ -59,7 +79,13 @@ class SimpleGraspEnvironment(Environment):
         )
         p_failure = 1 - p_success
         
-        grasp_success = np.random.choice([True,False],p=[p_success,p_failure])
-        return grasp_success
+        # Random Process
+        rng = np.random.default_rng(self.seed)
+        grasp_success = rng.choice([True,False],p=[p_success,p_failure])
+        self.update_seed(rng)
 
+        return grasp_success
+    
+    def update_seed(self,rng:np.random._generator.Generator):
+        self.seed = rng.integers(0,MAX_SEED)
 
