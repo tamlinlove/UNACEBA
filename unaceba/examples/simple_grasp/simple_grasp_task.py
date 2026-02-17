@@ -7,8 +7,8 @@ from unaceba.examples.simple_grasp.simple_grasp_environment import SimpleGraspEn
 from unaceba.examples.simple_grasp.simple_grasp_state import SimpleGraspState
 
 class SimpleGraspTask(Task):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self,log_dir:str,log_file:str, **kwargs):
+        super().__init__(log_dir,log_file,**kwargs)
 
     '''
     TASK SETUP

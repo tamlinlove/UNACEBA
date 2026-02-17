@@ -2,6 +2,7 @@ import py_trees
 from typing import List
 
 from unaceba.task.state import State
+from unaceba.bt.log_node import LogNode
 
 class LeafNode(py_trees.behaviour.Behaviour):
     '''
@@ -13,6 +14,9 @@ class LeafNode(py_trees.behaviour.Behaviour):
         # Blackboard
         self.board = self.attach_blackboard_client(name=f"{name}_board")
         self.board.register_key("state", access=py_trees.common.Access.READ)
+
+        # Logging
+        self.lognode:LogNode = None
 
     '''
     EMPTY BOILERPLATE FUNCTIONS
@@ -62,6 +66,12 @@ class LeafNode(py_trees.behaviour.Behaviour):
         # TODO
         
         return self.execute(state)
+    
+    '''
+    LOGGING
+    '''
+    def add_log_node(self,lognode:LogNode):
+        self.lognode = lognode
     
     '''
     SEMANTIC DESCRIPTION

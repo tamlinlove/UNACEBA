@@ -36,3 +36,18 @@ class SimpleGraspState(State):
             "grasp_strategy":CategoricalRange(values=["close","general"],allow_none=True),
             "grasp_succeeded":BooleanRange(allow_none=True),
         }
+    
+    '''
+    SEMANTIC DESCRIPTION
+    '''
+    def semantic_dict(self) -> dict[str,str]:
+        return {
+            # Environment Properties
+            "grasp_instruction":"The instruction given by the user indicating the object they want grasped",
+            "target_object":"The object the robot believes the user wants",
+            "target_object_confidence":"The confidence the robot has in their belief over the target object",
+            "object_distance":"The distance between the robot and the object",
+            # Task Properties
+            "grasp_strategy":"The selected grasp startegy used to grasp the object",
+            "grasp_succeeded":"Whether or not the grasp was successful",
+        }
