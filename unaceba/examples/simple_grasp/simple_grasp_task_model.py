@@ -1,6 +1,7 @@
 from unaceba.explainer.probabilistic_task_model import ProbabilisticTaskModel
 from unaceba.examples.simple_grasp.simple_grasp_state import SimpleGraspState
 from unaceba.examples.simple_grasp.simple_grasp_environment import GRASP_SUCCESS_PROBS
+from unaceba.utils.variables import VarRange,CategoricalRange,ContinuousRange
 
 from pgmpy.factors.discrete.CPD import TabularCPD
 
@@ -13,13 +14,47 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         super().__init__()
 
     '''
-    State model definitions
+    Task model definitions
     '''
+    def model_state_variables(self) -> list[str]:
+        '''
+        Return a list of state variables not explicitly observed from episodic memory but used by the task model
+        '''
+        return [
+            "binary_object_distance",
+            "object_distance_threshold"
+        ]
+    
+    def model_state_ranges(self) -> Dict[str,VarRange]:
+        '''
+        Output
+        --------
+        range_dict : Dict[str,VarRange]
+            dict mapping variable names to VarRange objects describing possible values of each variable
+        '''
+        return {
+            "binary_object_distance":CategoricalRange(values=["close","far"]),
+            "object_distance_threshold":ContinuousRange(min=0,max=3)
+        }
+    
+    def model_state_semantics(self) -> dict[str,str]:
+        '''
+        Output
+        --------
+        range_dict : dict[str,str]
+            dict mapping variable names to descriptions of those variables
+        '''
+        return {
+            "binary_object_distance":"The binary classification of target object distance as either close or far, determined by a threshold.",
+            "object_distance_threshold":"The threshold used to determine the binary distance classification of objects",
+        }
+
     def cm_edges(self) -> list[tuple[str,str]]:
         '''
         Return a list of edges representing the assumptions of a causal model modelling this state
         All strings in these edges represent state variables
         '''
+        # TODO: add edges in between model state variables
         return []
     
     def environment_inputs(self) -> list[tuple[str,str]]:
@@ -29,7 +64,7 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         '''
         return [
             ("grasp_succeeded","Handover"),
-            ("object_distance","Grasp"),
+            ("binary_object_distance","Grasp"),
             ("grasp_strategy","Grasp"),
             ("target_object","Grasp"),
         ]
@@ -72,16 +107,19 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
     def stochastic_cpds(self):
         '''
         TODO: Robustly handle continuous variables in the parents
+
+        This can be done by inserting an extra variable s.t. Distance > Discrete Distance > Success
+        Requires explicitly defining variables which cannot be read from the episodic memory but instead inferred from known observations
         '''
         grasp_cpd = TabularCPD(
             "grasp_success",
             2,
             GRASP_SUCCESS_PROBS,
-            evidence=["discrete_object_distance","grasp_strategy","target_object"],
+            evidence=["binary_object_distance","grasp_strategy","target_object"],
             evidence_card=[2,2,3],
             state_names={
                 "grasp_success":["success","failure"],
-                "discrete_object_distance":["close","far"],
+                "binary_object_distance":["close","far"],
                 "grasp":SimpleGraspState.get_ranges()["grasp_strategy"].values,
                 "object":SimpleGraspState.get_ranges()["target_object"].values,
             }

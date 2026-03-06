@@ -1,4 +1,5 @@
 from unaceba.task.state import State
+from unaceba.utils.variables import VarRange
 
 from typing import Dict,List
 
@@ -9,6 +10,30 @@ class TaskModel:
     '''
     Task model definitions
     '''
+    def model_state_variables(self) -> list[str]:
+        '''
+        Return a list of state variables not explicitly observed from episodic memory but used by the task model
+        '''
+        raise NotImplementedError
+    
+    def model_state_ranges(self) -> Dict[str,VarRange]:
+        '''
+        Output
+        --------
+        range_dict : Dict[str,VarRange]
+            dict mapping variable names to VarRange objects describing possible values of each variable
+        '''
+        raise NotImplementedError
+    
+    def model_state_semantics(self) -> dict[str,str]:
+        '''
+        Output
+        --------
+        range_dict : dict[str,str]
+            dict mapping variable names to descriptions of those variables
+        '''
+        raise NotImplementedError
+
     def cm_edges(self) -> list[tuple[str,str]]:
         '''
         Return a list of edges representing the assumptions of a causal model modelling this state

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import List,Dict,Self
 
 from unaceba.task.state import State
-from unaceba.explainer.state_model import StateModel
+from unaceba.explainer.task_model import StateModel
 
 CATEGORIES = ["Execution","Return","State"]
 

@@ -41,6 +41,12 @@ class SimpleGraspState(State):
     SEMANTIC DESCRIPTION
     '''
     def semantic_dict(self) -> dict[str,str]:
+        '''
+        Output
+        --------
+        range_dict : dict[str,str]
+            dict mapping variable names to descriptions of those variables
+        '''
         return {
             # Environment Properties
             "grasp_instruction":"The instruction given by the user indicating the object they want grasped",
