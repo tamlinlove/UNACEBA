@@ -1,11 +1,14 @@
-from unaceba.explainer.state_model import StateModel
+from unaceba.explainer.probabilistic_task_model import ProbabilisticTaskModel
 from unaceba.examples.simple_grasp.simple_grasp_state import SimpleGraspState
+from unaceba.examples.simple_grasp.simple_grasp_environment import GRASP_SUCCESS_PROBS
+
+from pgmpy.factors.discrete.CPD import TabularCPD
 
 from typing import Dict,List
 
 import copy
 
-class SimpleGraspStateModel(StateModel):
+class SimpleGraspTaskModel(ProbabilisticTaskModel):
     def __init__(self):
         super().__init__()
 
@@ -57,6 +60,38 @@ class SimpleGraspStateModel(StateModel):
             return False
         return True
     
+
+    '''
+    PROBABILISTIC ELEMENTS
+    '''
+    def determinstic_node(self, node):
+        if node == "Grasp":
+            return False
+        return True
+    
+    def stochastic_cpds(self):
+        '''
+        TODO: Robustly handle continuous variables in the parents
+        '''
+        grasp_cpd = TabularCPD(
+            "grasp_success",
+            2,
+            GRASP_SUCCESS_PROBS,
+            evidence=["discrete_object_distance","grasp_strategy","target_object"],
+            evidence_card=[2,2,3],
+            state_names={
+                "grasp_success":["success","failure"],
+                "discrete_object_distance":["close","far"],
+                "grasp":SimpleGraspState.get_ranges()["grasp_strategy"].values,
+                "object":SimpleGraspState.get_ranges()["target_object"].values,
+            }
+        )
+
+        return {
+            "return_Grasp":grasp_cpd,
+        }
+
+    
     '''
     UTILITY
     '''
@@ -65,3 +100,4 @@ class SimpleGraspStateModel(StateModel):
         Create a new instance of the state with the same values
         '''
         return SimpleGraspState(values=copy.deepcopy(state.values))
+    

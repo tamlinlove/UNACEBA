@@ -2,12 +2,12 @@ from unaceba.task.state import State
 
 from typing import Dict,List
 
-class StateModel:
+class TaskModel:
     def __init__(self):
         pass
 
     '''
-    State model definitions
+    Task model definitions
     '''
     def cm_edges(self) -> list[tuple[str,str]]:
         '''
