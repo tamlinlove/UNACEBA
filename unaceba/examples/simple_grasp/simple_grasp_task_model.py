@@ -54,12 +54,14 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         Return a list of edges representing the assumptions of a causal model modelling this state
         All strings in these edges represent state variables
         '''
-        # TODO: add edges in between model state variables
-        return []
+        return [
+            ("object_distance","binary_object_distance"),
+            ("object_distance_threshold","binary_object_distance")
+        ]
     
     def environment_inputs(self) -> list[tuple[str,str]]:
         '''
-        Returns a list of edges representing the impact of state variables on BT node return statuses through environment dynamics 
+        Returns a list of edges representing the impact of state/model variables on BT node return statuses through environment dynamics 
         Var1 in each edge is a state variable, Var2 is a BT node name
         '''
         return [
@@ -75,6 +77,26 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         '''
         return {}
     
+    def can_intervene(self,node:str):
+        '''
+        Given the name of the node, return True if a causal model is allowed to intervene on its value
+        '''
+        if node in ["grasp_instruction","object_distance_threshold"]:
+            return False
+        return True
+    
+    '''
+    FUNCTIONS
+    '''
+    @staticmethod
+    def calculate_binary_object_distance(state:SimpleGraspState) -> str:
+        distance = state.get_value("object_distance")
+        threshold = state.get_value("object_distance_threshold")
+
+        if distance <= threshold:
+            return "close"
+        return "far"
+
 
     def var_funcs(self) -> dict:
         '''
@@ -85,15 +107,9 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
             for key in SimpleGraspState.get_ranges().keys()
         }
 
+        func_dict["binary_object_distance"] = self.calculate_binary_object_distance
+
         return func_dict
-    
-    def can_intervene(self,node:str):
-        '''
-        Given the name of the node, return True if a causal model is allowed to intervene on its value
-        '''
-        if node in ["grasp_instruction"]:
-            return False
-        return True
     
 
     '''

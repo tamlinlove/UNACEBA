@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import List,Dict,Self
 
 from unaceba.task.state import State
-from unaceba.explainer.task_model import StateModel
+from unaceba.explainer.task_model import TaskModel
 
 CATEGORIES = ["Execution","Return","State"]
 
@@ -50,7 +50,7 @@ class CausalModel:
     '''
     Class for a causal Explanation Model that represents a BT and Environment
     '''
-    def __init__(self,state_model:StateModel):
+    def __init__(self,state_model:TaskModel):
         self.nodes:Dict[str,CausalNode] = {}
         self.graph = nx.DiGraph()
         self.state_model = state_model
