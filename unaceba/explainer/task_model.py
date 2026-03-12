@@ -81,3 +81,9 @@ class TaskModel:
         Create a new instance of the state with the same values
         '''
         raise NotImplementedError
+    
+    def state_vars(self):
+        '''
+        Return a list of all state variables in considered by the task model
+        '''
+        raise NotImplementedError

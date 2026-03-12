@@ -52,7 +52,7 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
     def cm_edges(self) -> list[tuple[str,str]]:
         '''
         Return a list of edges representing the assumptions of a causal model modelling this state
-        All strings in these edges represent state variables
+        All strings in these edges represent state/model variables
         '''
         return [
             ("object_distance","binary_object_distance"),
@@ -73,9 +73,10 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
     
     def environment_outputs(self) -> Dict[str,List[str]]:
         '''
-        Returns a dict mapping the names of BT nodes to lists of variables that they indirectly impact through environment actions 
+        Returns a list of edges representing the impact of BT node execution on state variables through environment dynamics 
+        Var1 in each edge is a BT node name, Var2 is a state/model variable
         '''
-        return {}
+        return []
     
     def can_intervene(self,node:str):
         '''
@@ -154,4 +155,7 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         Create a new instance of the state with the same values
         '''
         return SimpleGraspState(values=copy.deepcopy(state.values))
+    
+    def state_vars(self):
+        return SimpleGraspState.state_vars() + self.model_state_variables()
     

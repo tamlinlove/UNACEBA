@@ -17,6 +17,27 @@ class SimpleGraspState(State):
         super().__init__(values=values)
 
     @staticmethod
+    def state_vars() -> list[str]:
+        '''
+        Return a list of state vars
+
+        Output
+        --------
+        vars : list[str]
+            list of state vars
+        '''
+        return [
+            # Environment Properties
+            "grasp_instruction",
+            "target_object",
+            "target_object_confidence",
+            "object_distance",
+            # Task Properties
+            "grasp_strategy",
+            "grasp_succeeded",
+        ]
+
+    @staticmethod
     def get_ranges():
         '''
         Return a dict mapping every variable name to a VarRange object describing the possible values
@@ -36,7 +57,7 @@ class SimpleGraspState(State):
             "grasp_strategy":CategoricalRange(values=["close","general"],allow_none=True),
             "grasp_succeeded":BooleanRange(allow_none=True),
         }
-    
+
     '''
     SEMANTIC DESCRIPTION
     '''

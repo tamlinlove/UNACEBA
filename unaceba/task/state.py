@@ -33,6 +33,18 @@ class State:
         '''
         raise NotImplementedError
     
+    @staticmethod
+    def state_vars() -> list[str]:
+        '''
+        Return a list of state vars
+
+        Output
+        --------
+        vars : list[str]
+            list of state vars
+        '''
+        raise NotImplementedError
+    
     '''
     VALUES
     '''
