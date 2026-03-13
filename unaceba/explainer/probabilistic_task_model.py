@@ -2,8 +2,8 @@ from unaceba.explainer.task_model import TaskModel
 from pgmpy.factors.discrete.CPD import TabularCPD
 
 class ProbabilisticTaskModel(TaskModel):
-    def __init__(self):
-        super().__init__()
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
 
     '''
     PROBABILISTIC ELEMENTS

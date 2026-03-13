@@ -43,8 +43,20 @@ class MemoryNode:
     def is_leaf(self):
         return self.category in ["Action","Condition"]
     
+    def is_action_node(self):
+        return self.category == "Action"
+    
+    def is_condition_node(self):
+        return self.category == "Condition"
+    
     def is_composite(self):
         return self.category in ["Sequence","Fallback"]
+    
+    def is_sequence(self):
+        return self.category == "Sequence"
+    
+    def is_fallback(self):
+        return self.category == "Fallback"
     
     def child_index(self):
         '''

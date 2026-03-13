@@ -13,6 +13,8 @@ class VarRange:
         allow_none : bool (default: False)
             if True, None will be valid
         '''
+        self.range_type = "Parent Range Class"
+        self.values = None
         self.allow_none = allow_none
 
     def is_valid(self,value):
@@ -30,6 +32,24 @@ class VarRange:
             True if value is valid, False otherwise
         '''
         raise NotImplementedError
+    
+    def is_continuous(self):
+        return False
+    
+    def add_value(self,value):
+        '''
+        Adds a value to the list of allowed variable values, if possible
+
+        Parameters
+        ----------
+        value : any
+            the value to add
+        '''
+        if self.values is None:
+            raise TypeError("Variable range does not allow adding values")
+        self.values.append(value)
+
+
 
 class CategoricalRange(VarRange):
     '''
@@ -47,6 +67,7 @@ class CategoricalRange(VarRange):
             remaining kwargs, see superclass
         '''
         super().__init__(**kwargs)
+        self.range_type = "Categorical"
         if isinstance(values,list):
             self.values = values
         else:
@@ -98,6 +119,7 @@ class ContinuousRange(VarRange):
             remaining kwargs, see superclass
         '''
         super().__init__(**kwargs)
+        self.range_type = "Continuous"
         try:
             min = float(min)
         except ValueError:
@@ -147,6 +169,23 @@ class ContinuousRange(VarRange):
         
         # Otherwise, we're fine
         return True
+    
+    def is_continuous(self):
+        return True
+    
+    def discretise(self,size:int,dec_places:int=10):
+        '''
+        Create a DiscretisedRange object based on this continuous range
+        '''
+        return DiscretisedRange(
+            min=self.min,
+            max=self.max,
+            size=size,
+            min_inclusive=self.min_inclusive,
+            max_inclusive=self.max_inclusive,
+            dec_places=dec_places,
+            allow_none=self.allow_none
+        )
 
 class DiscretisedRange(ContinuousRange):
     '''
@@ -174,6 +213,8 @@ class DiscretisedRange(ContinuousRange):
             remaining kwargs, see superclass
         '''
         super().__init__(min,max,min_inclusive=min_inclusive,max_inclusive=max_inclusive,**kwargs)
+        self.range_type = "DiscretisedContinuous"
+        self.is_continuous = False
 
         if not isinstance(size,int) or size < 2:
             raise TypeError(f"{size} is not a positive integer >=2")
@@ -216,6 +257,8 @@ class DiscretisedRange(ContinuousRange):
 
         return values
 
+    def is_continuous(self):
+        return False
 
 class BooleanRange(VarRange):
     '''
@@ -231,6 +274,8 @@ class BooleanRange(VarRange):
             remaining kwargs, see superclass
         '''
         super().__init__(**kwargs)
+        self.range_type = "Boolean"
+        self.values = [True,False]
 
     def is_valid(self,value):
         '''
@@ -274,6 +319,7 @@ class AnyRange(VarRange):
             remaining kwargs, see superclass
         '''
         super().__init__(allow_none=allow_none)
+        self.range_type = "Any"
         self.var_type = var_type
 
     def is_valid(self,value):
@@ -331,6 +377,7 @@ class IntRange(VarRange):
             remaining kwargs, see superclass
         '''
         super().__init__(**kwargs)
+        self.range_type = "IntegerInterval"
 
         if not isinstance(min,int):
             raise ValueError(f"{min} is not an int")
@@ -347,6 +394,15 @@ class IntRange(VarRange):
         self.max = max
         self.min_inclusive = min_inclusive
         self.max_inclusive = max_inclusive
+
+        # Create values
+        min_val = self.min
+        max_val = self.max
+        if not self.min_inclusive:
+            min_val += 1
+        if not self.max_inclusive:
+            max_val -= min_inclusive
+        self.values = list(range(min_val, max_val + 1))
 
     def is_valid(self,value):
         '''
@@ -397,3 +453,4 @@ class NormalisedFloatRange(ContinuousRange):
             remaining kwargs, see superclass
         '''
         super().__init__(0, 1, **kwargs)
+        self.range_type = "NormalisedFloat"

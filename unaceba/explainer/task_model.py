@@ -4,8 +4,8 @@ from unaceba.utils.variables import VarRange
 from typing import Dict,List
 
 class TaskModel:
-    def __init__(self):
-        pass
+    def __init__(self,discretisation_size=10,**kwargs):
+        self.discretisation_size = discretisation_size
 
     '''
     Task model definitions
@@ -53,6 +53,26 @@ class TaskModel:
         Returns a dict mapping the names of BT nodes to lists of variables that they indirectly impact through environment actions 
         '''
         raise NotImplementedError
+    
+    def can_intervene(self,node:str):
+        '''
+        Given the name of the node, return True if a causal model is allowed to intervene on its value
+        '''
+        raise NotImplementedError
+    
+    '''
+    RANGES
+    '''
+    def calculate_state_var_ranges(self) -> Dict[str,VarRange]:
+        '''
+        Return a dict mapping state variable names to their ranges as VarRange objects, including necessary modelling abstractions such as discretisation
+        '''
+        raise NotImplementedError
+
+
+    '''
+    FUNCTIONS
+    '''
 
     
     def var_funcs(self) -> dict:
@@ -67,11 +87,7 @@ class TaskModel:
         '''
         return self.var_funcs()[node](state)
     
-    def can_intervene(self,node:str):
-        '''
-        Given the name of the node, return True if a causal model is allowed to intervene on its value
-        '''
-        raise NotImplementedError
+    
     
     '''
     UTILITY
