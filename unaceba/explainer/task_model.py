@@ -6,6 +6,8 @@ from typing import Dict,List
 class TaskModel:
     def __init__(self,discretisation_size=10,**kwargs):
         self.discretisation_size = discretisation_size
+        self.model_only_variables = self.model_state_vars()
+        self.state_only_variables = None
 
     '''
     Task model definitions
@@ -103,3 +105,6 @@ class TaskModel:
         Return a list of all state variables in considered by the task model
         '''
         raise NotImplementedError
+    
+    def is_model_var(self,variable:str) -> bool:
+        return variable in self.model_variables

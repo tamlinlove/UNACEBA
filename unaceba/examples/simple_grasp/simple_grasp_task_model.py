@@ -13,6 +13,8 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
 
+        self.state_only_variables = SimpleGraspState.state_vars() 
+
     '''
     Task model definitions
     '''
@@ -185,5 +187,6 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         return SimpleGraspState(values=copy.deepcopy(state.values))
     
     def state_vars(self):
-        return SimpleGraspState.state_vars() + self.model_state_variables()
+        return self.state_only_variables + self.model_only_variables
+    
     

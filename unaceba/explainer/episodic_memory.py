@@ -85,6 +85,7 @@ class EpisodicMemory:
         '''
         Creates the episodic memory from the specified file
         '''
+        self.filepath = filepath
         # Read file
         with open(filepath, 'r') as file:
             self.data = json.load(file)
@@ -95,6 +96,9 @@ class EpisodicMemory:
         # Leaf nodes
         self.ordered_nodes = self.calculate_node_order()
         self.ordered_leaf_nodes = [node_id for node_id in self.btnodes if self.btnodes[node_id].is_leaf()]
+
+        # Reconstruct time info
+        self.timesteps = self.reconstruct_timesteps(self.data)
 
 
     '''
@@ -141,6 +145,35 @@ class EpisodicMemory:
                 break
 
         return root,btnodes,node_names
+    
+    def reconstruct_timesteps(self,data) -> Dict[int,list[int]]:
+        ticks = {}
+        for tick in data:
+            if tick.isdigit():
+                tick_int = int(tick)
+                ticks[tick_int] = []
+                for t in data[tick]:
+                    ticks[tick_int].append(int(t))
+        return ticks
+    
+    '''
+    LOADING OPERATIONS
+    '''
+    def last_tick(self) -> int:
+        return max(self.timesteps.keys())
+    
+    def last_time_at_tick(self,tick:int) -> int:
+        return self.timesteps[tick][-1]
+    
+    def valid_timestep(self,tick:int,time:int) -> bool:
+        if tick in self.timesteps:
+            if time in self.timesteps[tick]:
+                return True
+        return False
+    
+    def get_state_var_value_at_time(self,variable:str,timestep_tick:int,timestep_time:int):
+        return self.data[str(timestep_tick)][str(timestep_time)]["state"][variable]
+
 
     '''
     GRAPH OPERATIONS

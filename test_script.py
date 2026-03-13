@@ -13,3 +13,5 @@ tm = SimpleGraspTaskModel()
 em = EpisodicMemory(f"logs/simple_grasp/run_{seed}.json")
 
 exp_model = ExplanationModel(episodic_memory=em,task_model=tm)
+exp_model.model_state_at_timestep(timestep_tick=None,timestep_time=None)
+

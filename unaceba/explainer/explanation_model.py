@@ -14,12 +14,13 @@ RETURN_CATEGORY = "Return"
 STATE_CATEGORY = "State"
 
 class ExplanationModelNode:
-    def __init__(self,node_id:str,node_name:str,category:str,btnode_id:str=None,var_name:str=None):
+    def __init__(self,node_id:str,node_name:str,category:str,btnode_id:str=None,var_name:str=None,time_index:int=None):
         self.id = node_id
         self.name = node_name
         self.category = category
         self.btnode_id = btnode_id
         self.var_name = var_name
+        self.time_index = time_index
 
     @classmethod
     def node_from_bt(cls,btnode:MemoryNode,category:str):
@@ -36,7 +37,19 @@ class ExplanationModelNode:
         node_id = f"{var}_t{index}"
         node_name = f"{var}_t{index}"
 
-        return cls(node_id,node_name,STATE_CATEGORY,var_name=var)
+        return cls(node_id,node_name,STATE_CATEGORY,var_name=var,time_index=index)
+    
+    '''
+    UTILS
+    '''
+    def is_execution(self) -> bool:
+        return self.category == EXECUTION_CATEGORY
+    
+    def is_return(self) -> bool:
+        return self.category == RETURN_CATEGORY
+    
+    def is_state_variable(self) -> bool:
+        return self.category == STATE_CATEGORY
 
 class ExplanationModel:
     def __init__(
@@ -332,7 +345,45 @@ class ExplanationModel:
     def calculate_variable_cpds(self):
         pass
 
-            
+    '''
+    LOADING
+    '''
+    def model_state_at_timestep(self,timestep_tick:int=None,timestep_time:int=None) -> dict:
+        # Handle None inputs
+        if timestep_tick is None:
+            # Assume last tick
+            timestep_tick = self.em.last_tick()
+        if timestep_time is None:
+            # Assume last time
+            timestep_time = self.em.last_time_at_tick(timestep_tick)
+
+        # Validation
+        if not self.em.valid_timestep(timestep_tick,timestep_time):
+            raise ValueError(f"Invalid timestep {timestep_tick}:{timestep_time} for file {self.em.filepath}")
+        
+        # Start by setting the initial state
+        model_state = self.initial_state()
+
+    def initial_state(self) -> dict:
+        model_state = {node_id:None for node_id in self.nodes}
+
+        # Add BT node values
+        for node_id in self.nodes:
+            node = self.nodes[node_id]
+            if node.is_execution():
+                # Initial state : nothing has been executed yet
+                model_state[node_id] = False
+            elif node.is_return():
+                # Initial state : nothing has returned a status yet
+                model_state[node_id] = py_trees.common.Status.INVALID
+
+        # Add initial timestep values for state variables
+        for state_var in self.tm.state_only_variables:
+            model_state[self.temporal_state_vars[state_var][0]] = self.em.get_state_var_value_at_time(state_var,0,0)
+
+        # Add initial timestep values for model variables
+        # TODO
+         
     
     '''
     VISUALISATION
