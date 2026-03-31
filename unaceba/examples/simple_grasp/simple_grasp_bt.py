@@ -17,7 +17,7 @@ class DecideObject(ActionNode):
         # NOTE: Dumb method follows for example purposes
         # Check if object occurs in string
         target_object = None
-        possible_objects = state.get_ranges()["target_object"].values
+        possible_objects = state.var_ranges["target_object"].values
         for pobj in possible_objects:
             if pobj in instruction:
                 target_object = pobj

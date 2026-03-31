@@ -44,6 +44,7 @@ class Task:
     '''
     def set_state(self,var:str,value):
         self.state.set_value(var,value)
+        self.board.state.set_value(var,value)
     
     '''
     EXECUTION

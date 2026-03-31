@@ -90,6 +90,10 @@ class EpisodicMemory:
         with open(filepath, 'r') as file:
             self.data = json.load(file)
 
+        # State class
+        module = importlib.import_module(self.data["state"]["module"])
+        self.state_class = getattr(module, self.data["state"]["class"])
+
         # Reconstruct tree
         self.root,self.btnodes,self.node_name_to_ids = self.reconstruct_tree_graph(self.data["tree"])
 
@@ -165,6 +169,20 @@ class EpisodicMemory:
     def last_time_at_tick(self,tick:int) -> int:
         return self.timesteps[tick][-1]
     
+    def get_next_timestep(self,tick:int,time:int) -> tuple[int,int]:
+        if time+1 in self.timesteps[tick]:
+            # Same tick
+            return tick,time+1
+        elif tick+1 in self.timesteps:
+            # Next tick
+            return tick+1,0
+        else:
+            # Reached the end
+            return None,None
+        
+    def get_update_at_timestep(self,tick:int,time:int) -> dict:
+        return self.data[str(tick)][str(time)]
+    
     def valid_timestep(self,tick:int,time:int) -> bool:
         if tick in self.timesteps:
             if time in self.timesteps[tick]:
@@ -192,5 +210,16 @@ class EpisodicMemory:
 
         traverse(self.root)
         return ordered_ids
+    
+    def get_BT_ancestors(self,btnode_id):
+        ancestors = []
+        node = self.btnodes[btnode_id]
+
+        while not node.is_root():
+            ancestors.append(node.parent.id)
+            node = node.parent
+
+        return ancestors
+
 
 

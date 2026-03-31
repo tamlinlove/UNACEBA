@@ -6,36 +6,15 @@ from typing import Dict,List
 class TaskModel:
     def __init__(self,discretisation_size=10,**kwargs):
         self.discretisation_size = discretisation_size
-        self.model_only_variables = self.model_state_vars()
         self.state_only_variables = None
+
+        self.model_only_variables:list[str] = []
+        self.model_var_ranges:Dict[str,VarRange] = {}
+        self.model_semantic_dict:Dict[str,str] = {}
 
     '''
     Task model definitions
     '''
-    def model_state_variables(self) -> list[str]:
-        '''
-        Return a list of state variables not explicitly observed from episodic memory but used by the task model
-        '''
-        raise NotImplementedError
-    
-    def model_state_ranges(self) -> Dict[str,VarRange]:
-        '''
-        Output
-        --------
-        range_dict : Dict[str,VarRange]
-            dict mapping variable names to VarRange objects describing possible values of each variable
-        '''
-        raise NotImplementedError
-    
-    def model_state_semantics(self) -> dict[str,str]:
-        '''
-        Output
-        --------
-        range_dict : dict[str,str]
-            dict mapping variable names to descriptions of those variables
-        '''
-        raise NotImplementedError
-
     def cm_edges(self) -> list[tuple[str,str]]:
         '''
         Return a list of edges representing the assumptions of a causal model modelling this state
@@ -89,6 +68,12 @@ class TaskModel:
         '''
         return self.var_funcs()[node](state)
     
+    def calculate_model_var_values(self,state:State):
+        '''
+        Given a state, calculate the values of the model variables defined by the task model
+        '''
+        raise NotImplementedError
+    
     
     
     '''
@@ -107,4 +92,4 @@ class TaskModel:
         raise NotImplementedError
     
     def is_model_var(self,variable:str) -> bool:
-        return variable in self.model_variables
+        return variable in self.model_only_variables

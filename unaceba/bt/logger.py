@@ -136,7 +136,7 @@ class Logger(py_trees.visitors.VisitorBase):
 
         # Log State Information
         self.log_dict["state"] = {
-            "variables":self.board.state.semantic_dict(),
+            "variables":self.board.state.semantic_dict,
             "class":self.board.state.__class__.__name__,
             "module":self.board.state.__class__.__module__,
         }

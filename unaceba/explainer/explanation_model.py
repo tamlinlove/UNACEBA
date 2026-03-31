@@ -13,6 +13,13 @@ EXECUTION_CATEGORY = "Execution"
 RETURN_CATEGORY = "Return"
 STATE_CATEGORY = "State"
 
+NODE_RETURNS = {
+    "Status.SUCCESS":py_trees.common.Status.SUCCESS,
+    "Status.FAILURE":py_trees.common.Status.FAILURE,
+    "Status.RUNNING":py_trees.common.Status.RUNNING,
+    "Status.INVALID":py_trees.common.Status.INVALID,
+}
+
 class ExplanationModelNode:
     def __init__(self,node_id:str,node_name:str,category:str,btnode_id:str=None,var_name:str=None,time_index:int=None):
         self.id = node_id
@@ -364,6 +371,48 @@ class ExplanationModel:
         # Start by setting the initial state
         model_state = self.initial_state()
 
+        # Iteratively calculate the next state
+        curr_tick = 0
+        curr_time = 0
+        found_time = False
+
+        self.value_history = {}
+        self.update_history = {}
+
+        while not found_time:
+            next_tick,next_time = self.em.get_next_timestep(curr_tick,curr_time)
+            if next_tick is None:
+                # Oops, this shouldn't happen
+                raise ValueError(f"Reached the end of time without finding the timestep. This shouldn't happen")
+            
+            if next_tick == curr_tick:
+                # We haven't advanced tick, no need to reset any variables
+                update = self.em.get_update_at_timestep(next_tick,next_time)
+
+                # First, update the relevant variables associated with the executed BT node
+                for btnode_id in update["update"]:
+                    # Node has been executed
+                    model_state[self.executions[btnode_id]] = True
+                    # Status has been updated
+                    model_state[self.returns[btnode_id]] = NODE_RETURNS[update["update"][btnode_id]["status"]]
+
+                    # Updating a leaf node implies all parents have been executed
+                    ancestors = self.em.get_BT_ancestors(btnode_id)
+                    # TODO: FINISH
+
+
+
+            # TODO: Change once real logic implemented
+            found_time = True
+
+    def get_state_at_time(self,model_state:dict,time:int) -> State:
+        state_vals = {
+            state_var:model_state[self.temporal_state_vars[state_var][time]] for state_var in self.tm.state_only_variables
+        }
+        state = self.em.state_class(values=state_vals)
+        return state
+
+
     def initial_state(self) -> dict:
         model_state = {node_id:None for node_id in self.nodes}
 
@@ -382,7 +431,14 @@ class ExplanationModel:
             model_state[self.temporal_state_vars[state_var][0]] = self.em.get_state_var_value_at_time(state_var,0,0)
 
         # Add initial timestep values for model variables
-        # TODO
+        initial_state = self.get_state_at_time(model_state,time=0)
+        model_var_vals = self.tm.calculate_model_var_values(initial_state)
+        for model_var in self.tm.model_only_variables:
+            model_state[self.temporal_state_vars[model_var][0]] = model_var_vals[model_var]
+    
+        return model_state
+        
+
          
     
     '''

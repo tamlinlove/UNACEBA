@@ -5,7 +5,8 @@ class State:
     '''
     Abstract interface for task states
     '''
-    def __init__(self,values:dict=None):
+
+    def __init__(self,state_vars:list[str],var_ranges:Dict[str,VarRange],semantic_dict:dict[str,str],values:dict=None):
         '''
         Construct a new State
 
@@ -14,37 +15,28 @@ class State:
         values : dict (default: None)
             a dict of initial values to populate the state with, or None
         '''
+        # Define variables
+        self.state_vars = state_vars
+        self.var_ranges = var_ranges
+        self.semantic_dict = semantic_dict
+
+        # Set values
         self.values = values
         if values is not None:
             self.set_values(values)
 
     '''
-    SETUP
+    VARIABLES
     '''
-    @staticmethod
-    def get_ranges() -> Dict[str,VarRange]:
-        '''
-        Return a dict mapping every variable name to a VarRange object describing the possible values
-
-        Output
-        --------
-        range_dict : Dict[str,VarRange]
-            dict mapping variable names to VarRange objects describing possible values of each variable
-        '''
-        raise NotImplementedError
-    
-    @staticmethod
-    def state_vars() -> list[str]:
-        '''
-        Return a list of state vars
-
-        Output
-        --------
-        vars : list[str]
-            list of state vars
-        '''
-        raise NotImplementedError
-    
+    def inject_variable(self,var:str,var_range:VarRange,semantic_info:str,value=None):
+        if var in self.state_vars:
+            raise ValueError(f"Variable {var} already in the list of state variables")
+        
+        self.state_vars.append(var)
+        self.var_ranges[var] = var_range
+        self.semantic_dict[var] = semantic_info
+        self.set_value(var,value)
+   
     '''
     VALUES
     '''
@@ -75,7 +67,7 @@ class State:
         value
             the value to set
         '''
-        if not self.get_ranges()[node].is_valid(value):
+        if not self.var_ranges[node].is_valid(value):
             raise ValueError(f"Cannot set {node} to {value}")
         
         self.values[node] = value
@@ -100,21 +92,16 @@ class State:
     def valid_state_assignment(self,values: Dict) -> bool:
         # First, check if all keys in values match keys in self.values
         for key in values.keys():
-            if key not in self.get_ranges():
+            if key not in self.var_ranges:
+                print(f"Key {key} not in range")
                 return False
             
         
         # Check values for each key        
         for var in values:
-            valid = self.get_ranges()[var].is_valid(values[var])
+            valid = self.var_ranges[var].is_valid(values[var])
             if not valid:
                 print(f"Invalid value for {var}: {values[var]}")
                 return False
             
         return True
-
-    '''
-    SEMANTIC DESCRIPTION
-    '''
-    def semantic_dict(self) -> dict[str,str]:
-        return {var:"A state variable" for var in self.vars()}

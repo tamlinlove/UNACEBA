@@ -25,6 +25,8 @@ GRASP_SUCCESS_PROBS = [
 ]
 
 class SimpleGraspEnvironment(Environment):
+    distance_threshold = 1
+
     def __init__(self,seed:int=0):
         super().__init__()
         self.seed = seed
@@ -51,8 +53,7 @@ class SimpleGraspEnvironment(Environment):
         return True
 
     def execute_grasp(self,state:SimpleGraspState) -> bool:
-        distance_threshold = 1
-        simple_distance = "close" if state.get_value("object_distance") <= distance_threshold else "far"
+        simple_distance = "close" if state.get_value("object_distance") <= self.distance_threshold else "far"
         grasp = state.get_value("grasp_strategy")
         target_object = state.get_value("target_object")
 
@@ -66,8 +67,8 @@ class SimpleGraspEnvironment(Environment):
             state_names={
                 "grasp_success":["success","failure"],
                 "distance":["close","far"],
-                "grasp":SimpleGraspState.get_ranges()["grasp_strategy"].values,
-                "object":SimpleGraspState.get_ranges()["target_object"].values,
+                "grasp":state.var_ranges["grasp_strategy"].values,
+                "object":state.var_ranges["target_object"].values,
             }
         )
 

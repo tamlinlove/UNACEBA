@@ -1,6 +1,6 @@
 from unaceba.explainer.probabilistic_task_model import ProbabilisticTaskModel
 from unaceba.examples.simple_grasp.simple_grasp_state import SimpleGraspState
-from unaceba.examples.simple_grasp.simple_grasp_environment import GRASP_SUCCESS_PROBS
+from unaceba.examples.simple_grasp.simple_grasp_environment import SimpleGraspEnvironment,GRASP_SUCCESS_PROBS
 from unaceba.utils.variables import VarRange,CategoricalRange,ContinuousRange,DiscretisedRange
 
 from pgmpy.factors.discrete.CPD import TabularCPD
@@ -13,43 +13,30 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
 
-        self.state_only_variables = SimpleGraspState.state_vars() 
+        dummy_state = SimpleGraspState()
+        self.state_only_variables = dummy_state.state_vars
+        self.state_only_ranges = dummy_state.var_ranges
+        self.state_only_semantic_dict = dummy_state.semantic_dict
+
+        # Model Variables
+        self.model_only_variables = [
+            "binary_object_distance",
+            "object_distance_threshold"
+        ]
+
+        self.model_var_ranges = {
+            "binary_object_distance":CategoricalRange(values=["close","far"]),
+            "object_distance_threshold":DiscretisedRange(min=0,max=3,size=self.discretisation_size)
+        }
+
+        self.model_semantic_dict = {
+            "binary_object_distance":"The binary classification of target object distance as either close or far, determined by a threshold.",
+            "object_distance_threshold":"The threshold used to determine the binary distance classification of objects",
+        }
 
     '''
     Task model definitions
     '''
-    def model_state_variables(self) -> list[str]:
-        '''
-        Return a list of state variables not explicitly observed from episodic memory but used by the task model
-        '''
-        return [
-            "binary_object_distance",
-            "object_distance_threshold"
-        ]
-    
-    def model_state_ranges(self) -> Dict[str,VarRange]:
-        '''
-        Output
-        --------
-        range_dict : Dict[str,VarRange]
-            dict mapping variable names to VarRange objects describing possible values of each variable
-        '''
-        return {
-            "binary_object_distance":CategoricalRange(values=["close","far"]),
-            "object_distance_threshold":ContinuousRange(min=0,max=3)
-        }
-    
-    def model_state_semantics(self) -> dict[str,str]:
-        '''
-        Output
-        --------
-        range_dict : dict[str,str]
-            dict mapping variable names to descriptions of those variables
-        '''
-        return {
-            "binary_object_distance":"The binary classification of target object distance as either close or far, determined by a threshold.",
-            "object_distance_threshold":"The threshold used to determine the binary distance classification of objects",
-        }
 
     def cm_edges(self) -> list[tuple[str,str]]:
         '''
@@ -98,7 +85,7 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         ranges = {}
 
         # Start with the ranges defined already by the state
-        state_ranges:Dict[str,VarRange] = SimpleGraspState.get_ranges()
+        state_ranges:Dict[str,VarRange] = self.state_only_ranges
         for var in state_ranges:
             if state_ranges[var].is_continuous():
                 # We need to discretise
@@ -108,7 +95,7 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
                 ranges[var] = state_ranges[var]
 
         # Now add the ranges defines by the task model
-        model_state_ranges = self.model_state_ranges()
+        model_state_ranges = self.model_var_ranges
         for var in model_state_ranges:
             ranges[var] = model_state_ranges[var]
 
@@ -127,6 +114,11 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         if distance <= threshold:
             return "close"
         return "far"
+    
+    @staticmethod
+    def calculate_object_distance_threshold(state:SimpleGraspState) -> float:
+        # For now, this just returns a constant value
+        return SimpleGraspEnvironment.distance_threshold
 
 
     def var_funcs(self) -> dict:
@@ -135,12 +127,30 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
         '''
         func_dict = {
             key: (lambda key: lambda state: state.get_value(key))(key)
-            for key in SimpleGraspState.get_ranges().keys()
+            for key in self.state_vars()
         }
 
         func_dict["binary_object_distance"] = self.calculate_binary_object_distance
 
         return func_dict
+    
+    def calculate_model_var_values(self,state:SimpleGraspState):
+        '''
+        Given a state, calculate the values of the model variables defined by the task model
+        '''
+        distance_threshold = self.calculate_object_distance_threshold(state)
+        state.inject_variable(
+            "object_distance_threshold",
+            self.model_var_ranges["object_distance_threshold"],
+            self.model_semantic_dict["object_distance_threshold"],
+            value=distance_threshold
+        )
+        binary_object_distance = self.calculate_binary_object_distance(state)
+
+        return {
+            "object_distance_threshold": distance_threshold,
+            "binary_object_distance": binary_object_distance,
+        }
     
 
     '''
@@ -167,8 +177,8 @@ class SimpleGraspTaskModel(ProbabilisticTaskModel):
             state_names={
                 "grasp_success":["success","failure"],
                 "binary_object_distance":["close","far"],
-                "grasp":SimpleGraspState.get_ranges()["grasp_strategy"].values,
-                "object":SimpleGraspState.get_ranges()["target_object"].values,
+                "grasp":self.state_only_ranges["grasp_strategy"].values,
+                "object":self.state_only_ranges["target_object"].values,
             }
         )
 
