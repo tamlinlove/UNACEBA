@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict
 
 from unaceba.bt.nodes import ActionNode,ConditionNode
+from unaceba.bt.rosnodes import RosActionNode, RosConditionNode
 from unaceba.bt.log_node import LogNode
 
 
@@ -68,9 +69,9 @@ class Logger(py_trees.visitors.VisitorBase):
 
     def add_to_tree(self,btnode:py_trees.behaviour.Behaviour):
         # Get node category
-        if isinstance(btnode,ActionNode):
+        if isinstance(btnode,ActionNode) or isinstance(btnode,RosActionNode):
             category = "Action"
-        elif isinstance(btnode,ConditionNode):
+        elif isinstance(btnode,ConditionNode) or isinstance(btnode,RosConditionNode):
             category = "Condition"
         elif isinstance(btnode,py_trees.composites.Sequence):
             category = "Sequence"
