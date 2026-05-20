@@ -1,9 +1,12 @@
 import time
 import py_trees
+import rclpy
+from rclpy.node import Node
 from std_msgs.msg import String
 from typing import List
+
 from unaceba.task.environment import Environment
-from unaceba.bt.rosnodes import RosActionNode, RosConditionNode
+from unaceba.bt.rosnodes import RosActionNode, RosConditionNode, RosLeafNode
 from unaceba.task.task import Task
 from unaceba.task.state import State
 
@@ -123,18 +126,78 @@ def ros_test_tree():
 class RosTestTask(Task):
     def __init__(self, log_dir, log_file, **kwargs):
         super().__init__(log_dir, log_file, **kwargs)
-        
-    '''
-    TASK SETUP
-    '''
-    def setup_state(self,**kwargs) -> State:
-        return State(state_vars=[],var_ranges={},semantic_dict={})
-    
-    def setup_environment(self,seed:int=0,**kwargs):
+
+    # ------------------------------------------------------------------ #
+    #  Task setup                                                          #
+    # ------------------------------------------------------------------ #
+
+    def setup_state(self, **kwargs) -> State:
+        return State(state_vars=[], var_ranges={}, semantic_dict={})
+
+    def setup_environment(self, seed: int = 0, **kwargs):
         return None
-    
-    def setup_tree(self,**kwargs) -> py_trees.trees.BehaviourTree:
+
+    def setup_tree(self, **kwargs) -> py_trees.trees.BehaviourTree:
         return py_trees.trees.BehaviourTree(root=ros_test_tree())
+
+    # ------------------------------------------------------------------ #
+    #  ROS helpers                                                         #
+    # ------------------------------------------------------------------ #
+
+    def _iter_ros_leaves(self):
+        """Walk the tree and yield every RosLeafNode."""
+        for node in self.tree.root.iterate():
+            if isinstance(node, RosLeafNode):
+                yield node
+
+    def _inject_ros_node(self, ros_node: Node) -> None:
+        """Inject the shared ROS node into every RosLeafNode in the tree."""
+        for leaf in self._iter_ros_leaves():
+            leaf.set_ros_node(ros_node)
+
+    # ------------------------------------------------------------------ #
+    #  Override run() to wrap the ROS lifecycle                           #
+    # ------------------------------------------------------------------ #
+
+    def run(self, display_tree: bool = False):
+        rclpy.init()
+        ros_node = Node("bt_runner")
+
+        try:
+            # Inject before setup() so ros_setup() has access to ros_node
+            self._inject_ros_node(ros_node)
+
+            # Now safe to call tree.setup() — mirrors what Task.run() does
+            self.tree.setup()
+
+            while rclpy.ok():
+                # Spin once to flush any pending callbacks before each tick
+                rclpy.spin_once(ros_node, timeout_sec=0.0)
+
+                self.tree.tick()
+
+                if display_tree:
+                    print(py_trees.display.unicode_tree(
+                        self.tree.root, show_status=True))
+
+                # Stop when the root reaches a terminal status
+                if self.tree.root.status in (
+                    py_trees.common.Status.SUCCESS,
+                    py_trees.common.Status.FAILURE,
+                ):
+                    ros_node.get_logger().info(
+                        f"Tree finished with: {self.tree.root.status}"
+                    )
+                    break
+
+                time.sleep(0.1)
+
+        except KeyboardInterrupt:
+            print("KILL")
+
+        finally:
+            ros_node.destroy_node()
+            rclpy.shutdown()
 
 
         
