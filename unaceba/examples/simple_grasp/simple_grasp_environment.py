@@ -39,7 +39,7 @@ class SimpleGraspEnvironment(Environment):
         print(f"ROBOT SAYS: {text}")
 
     def execute_handover(self,state:SimpleGraspState) -> bool:
-        text = f"Here is your item - {state.get_value("target_object")}"
+        text = f"Here is your item - {state.get_value('target_object')}"
         self.robot_speak(text)
 
         if state.get_value("grasp_succeeded"):
@@ -47,7 +47,7 @@ class SimpleGraspEnvironment(Environment):
         return False
 
     def execute_apologise(self,state:SimpleGraspState) -> bool:
-        text = f"Sorry, I couldn't bring your {state.get_value("target_object")}"
+        text = f"Sorry, I couldn't bring your {state.get_value('target_object')}"
         self.robot_speak(text)
 
         return True

@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import py_trees
 import importlib
-from typing import Self,List,Dict
+from typing_extensions import Self,List,Dict
 
 class MemoryNode:
     def __init__(self,id:str,name:str,category:str,behaviour:py_trees.behaviour.Behaviour=None,memory:bool=None):

@@ -1,4 +1,4 @@
-from typing import Self,Dict
+from typing_extensions import Self,Dict
 from unaceba.utils.variables import VarRange
 
 class State:
