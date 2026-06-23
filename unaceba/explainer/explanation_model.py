@@ -8,6 +8,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import py_trees
 from typing import Dict
+from rclpy.node import Node
 
 EXECUTION_CATEGORY = "Execution"
 RETURN_CATEGORY = "Return"
@@ -63,7 +64,8 @@ class ExplanationModel:
             self,
             episodic_memory:EpisodicMemory,
             task_model:TaskModel,
-            probabilistic:bool=True
+            probabilistic:bool=True,
+            ros_node:Node=None,
     ):
         '''
         Creates the explanation model combining BT structure and the task model
@@ -71,6 +73,7 @@ class ExplanationModel:
         self.em = episodic_memory
         self.tm = task_model
         self.probabilistic = probabilistic
+        self.ros_node = ros_node
 
         # Create explanation model structure
         self.nodes:Dict[str,ExplanationModelNode] = {}
@@ -103,6 +106,15 @@ class ExplanationModel:
 
 
         #self.visualise_explanation_graph()
+
+    '''
+    DEBUGGING
+    '''
+    def log(self,text:str):
+        if self.ros_node is None:
+            print(text)
+        else:
+            self.ros_node.get_logger().info(str(text))
 
     '''
     EXPLANATION GRAPH
@@ -196,6 +208,10 @@ class ExplanationModel:
             # Inputs
             input_vars = behaviour.input_variables() + env_inputs[leaf_id]
             output_vars = behaviour.output_variables() + env_outputs[leaf_id]
+
+            if "" in input_vars or "" in output_vars:
+                # TODO: Alternatively, remove it or something like that
+                raise ValueError(f"Behaviour {behaviour.name} contains an empty string in either input or output variable set, which is not allowed.")
 
             # Leaf input nodes
             for input_var in input_vars:

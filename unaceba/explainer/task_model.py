@@ -7,6 +7,8 @@ class TaskModel:
     def __init__(self,discretisation_size=10,**kwargs):
         self.discretisation_size = discretisation_size
         self.state_only_variables = None
+        self.state_only_ranges = None
+        self.state_only_semantic_dict = None
 
         self.model_only_variables:list[str] = []
         self.model_var_ranges:Dict[str,VarRange] = {}

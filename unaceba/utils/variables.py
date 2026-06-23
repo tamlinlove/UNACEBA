@@ -17,6 +17,9 @@ class VarRange:
         self.values = None
         self.allow_none = allow_none
 
+    def __str__(self):
+        return str(self.values)
+
     def is_valid(self,value):
         '''
         Checks if value is valid for the defined range
@@ -134,6 +137,11 @@ class ContinuousRange(VarRange):
         self.max = max
         self.min_inclusive = min_inclusive
         self.max_inclusive = max_inclusive
+
+    def __str__(self):
+        start_bracket = "[" if self.min_inclusive else "("
+        end_bracket = "]" if self.max_inclusive else ")"
+        return f"{start_bracket}{self.min}:{self.max}{end_bracket}"
 
     def is_valid(self,value):
         '''
@@ -322,6 +330,9 @@ class AnyRange(VarRange):
         self.range_type = "Any"
         self.var_type = var_type
 
+    def __str__(self):
+        return f"Any {self.var_type}"
+
     def is_valid(self,value):
         '''
         Checks if value is valid for the defined range
@@ -403,6 +414,11 @@ class IntRange(VarRange):
         if not self.max_inclusive:
             max_val -= min_inclusive
         self.values = list(range(min_val, max_val + 1))
+
+    def __str__(self):
+        start_bracket = "[" if self.min_inclusive else "("
+        end_bracket = "]" if self.max_inclusive else ")"
+        return f"Integer {start_bracket}{self.min}:{self.max}{end_bracket}"
 
     def is_valid(self,value):
         '''
