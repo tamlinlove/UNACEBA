@@ -4,7 +4,14 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import py_trees
 import importlib
-from typing_extensions import Self,List,Dict
+from typing import TYPE_CHECKING, List, Dict
+if TYPE_CHECKING:
+    from typing import Self
+else:
+    try:
+        from typing import Self
+    except ImportError:
+        from typing_extensions import Self
 
 class MemoryNode:
     def __init__(self,id:str,name:str,category:str,behaviour:py_trees.behaviour.Behaviour=None,memory:bool=None):
