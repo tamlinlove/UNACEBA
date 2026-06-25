@@ -169,8 +169,6 @@ class ExplanationModel:
                 temporalities[node_id] = i
                 i += 1
         return temporalities
-
-
     
     def add_states_to_graph(
         self,
@@ -397,6 +395,9 @@ class ExplanationModel:
 
         while not found_time:
             next_tick,next_time = self.em.get_next_timestep(curr_tick,curr_time)
+            self.log(f"At {curr_tick}:{curr_time}, next step is {next_tick}:{next_time}")
+            self.log(self.em.timesteps)
+
             if next_tick is None:
                 # Oops, this shouldn't happen
                 raise ValueError(f"Reached the end of time without finding the timestep. This shouldn't happen")
@@ -414,6 +415,8 @@ class ExplanationModel:
 
                     # Updating a leaf node implies all parents have been executed
                     ancestors = self.em.get_BT_ancestors(btnode_id)
+                    self.log(ancestors)
+
                     # TODO: FINISH
 
 
@@ -425,7 +428,7 @@ class ExplanationModel:
         state_vals = {
             state_var:model_state[self.temporal_state_vars[state_var][time]] for state_var in self.tm.state_only_variables
         }
-        state = self.em.state_class(values=state_vals)
+        state = self.tm.make_state(state_vals)
         return state
 
 

@@ -1,10 +1,19 @@
+import py_trees
+
 from unaceba.task.state import State
 from unaceba.utils.variables import VarRange
+from unaceba.task.environment import Environment
 
 from typing import Dict,List
 
 class TaskModel:
     def __init__(self,discretisation_size=10,**kwargs):
+        # Setup blackboard
+        self.board = py_trees.blackboard.Client(name="Board")
+        self.board.register_key("environment", access=py_trees.common.Access.WRITE)
+        self.board.environment:Environment
+
+        # Class attributes
         self.discretisation_size = discretisation_size
         self.state_only_variables = None
         self.state_only_ranges = None
@@ -90,6 +99,12 @@ class TaskModel:
     def state_vars(self):
         '''
         Return a list of all state variables in considered by the task model
+        '''
+        raise NotImplementedError
+    
+    def make_state(self,values:dict,**kwargs) -> State:
+        '''
+        Create an instance of State with the appropriate inputs and classes
         '''
         raise NotImplementedError
     
