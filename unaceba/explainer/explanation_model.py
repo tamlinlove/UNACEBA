@@ -85,8 +85,10 @@ class ExplanationModel:
             returns=self.returns
         )
 
+        # Calculate the mapping from btnode to time
         self.btnode_times = self.assign_times_to_bt_nodes()
 
+        # Add temporal versions of state variables
         self.temporal_state_vars:Dict[str,str] = {}
         self.explanation_graph = self.add_states_to_graph(
             graph=self.explanation_graph,
@@ -96,6 +98,9 @@ class ExplanationModel:
             temporal_state_vars=self.temporal_state_vars
         )
 
+        # Create parent/children dictionaries for easy retrieval of parents
+        self.parents = self.calculate_parents()
+        self.children = self.calculate_children()
 
         # Create ranges and functions(cpds)
         self.var_ranges = self.calculate_ranges()
@@ -256,6 +261,12 @@ class ExplanationModel:
 
         return env_inputs,env_outputs
     
+    def calculate_parents(self):
+        return {n: list(self.explanation_graph.predecessors(n)) for n in self.explanation_graph.nodes()}
+    
+    def calculate_children(self):
+        return {n: list(self.explanation_graph.successors(n)) for n in self.explanation_graph.nodes()}
+    
     '''
     VARIABLE RANGES
     '''
@@ -395,9 +406,7 @@ class ExplanationModel:
 
         while not found_time:
             next_tick,next_time = self.em.get_next_timestep(curr_tick,curr_time)
-            self.log(f"At {curr_tick}:{curr_time}, next step is {next_tick}:{next_time}")
-            self.log(self.em.timesteps)
-
+            
             if next_tick is None:
                 # Oops, this shouldn't happen
                 raise ValueError(f"Reached the end of time without finding the timestep. This shouldn't happen")
@@ -406,7 +415,7 @@ class ExplanationModel:
                 # We haven't advanced tick, no need to reset any variables
                 update = self.em.get_update_at_timestep(next_tick,next_time)
 
-                # First, update the relevant variables associated with the executed BT node
+                # Update the relevant variables associated with the executed BT node
                 for btnode_id in update["update"]:
                     # Node has been executed
                     model_state[self.executions[btnode_id]] = True
@@ -415,14 +424,39 @@ class ExplanationModel:
 
                     # Updating a leaf node implies all parents have been executed
                     ancestors = self.em.get_BT_ancestors(btnode_id)
-                    self.log(ancestors)
+                    for anc in ancestors:
+                        model_state[self.executions[anc]] = True
 
-                    # TODO: FINISH
+                    # Update all state variables
+                    if self.em.btnodes[btnode_id].is_leaf():
+                        # NOTE: Assumes that state changes do not occur on in between leaf node timesteps (i.e. always indexed on leaf node execution, not composite node execution)
+                        btnode_time = self.btnode_times[btnode_id]
+                        for state_var in update["state"]:
+                            temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
+                            model_state[temporal_var] = update["state"][state_var]
+            else:
+                # TODO: Reset the BT
+                # Step 1: Set state vars at t0 to their values at the last state update
+                # Step 2: Two cases, one where root status is Running and one where root status is Success/Failure
+                # Case 1: Success/Failure
+                # In this case, we reset every node to Idle
+                # Case 2: Running
+                # In this case, check the status of every node up to and including the last updated node
+                # If the node has returned Success/Failure, but its parent has memory=False, reset them to Idle
+                # Every other case, no need to change the status of the node
+                raise NotImplementedError           
+            
+            # DEBUGGING
+            self.log(f"Done with {next_tick}:{next_time}")
 
+            curr_tick = next_tick
+            curr_time = next_time
 
+            if curr_time == timestep_time and curr_tick == timestep_tick:
+                found_time = True
 
-            # TODO: Change once real logic implemented
-            found_time = True
+        return model_state
+            
 
     def get_state_at_time(self,model_state:dict,time:int) -> State:
         state_vals = {
