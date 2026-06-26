@@ -4,7 +4,15 @@ import matplotlib.pyplot as plt
 import copy
 
 from collections.abc import Callable
-from typing import List,Dict,Self
+from typing import TYPE_CHECKING, List, Dict
+if TYPE_CHECKING:
+    from typing import Self
+else:
+    try:
+        from typing import Self
+    except ImportError:
+        from typing_extensions import Self
+from rclpy.node import Node
 
 from unaceba.task.state import State
 from unaceba.explainer.task_model import TaskModel
@@ -50,11 +58,11 @@ class CausalModel:
     '''
     Class for a causal Explanation Model that represents a BT and Environment
     '''
-    def __init__(self,state_model:TaskModel):
+    def __init__(self,state_model:TaskModel,ros_node:Node=None):
         self.nodes:Dict[str,CausalNode] = {}
-        self.graph = nx.DiGraph()
         self.state_model = state_model
-
+        self.ros_node = ros_node
+        self.graph = nx.DiGraph()
     '''
     GRAPH OPERATIONS
     '''
@@ -221,3 +229,12 @@ class CausalModel:
         nx.draw_networkx_labels(graph, pos, labels=label_dict)
         nx.draw_networkx_edges(graph, pos, edgelist= graph.edges, arrows=True)
         plt.show()
+
+    '''
+    DEBUGGING
+    '''
+    def log(self,text:str):
+        if self.ros_node is None:
+            print(text)
+        else:
+            self.ros_node.get_logger().info(str(text))

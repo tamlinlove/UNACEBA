@@ -100,7 +100,13 @@ class TaskModel:
         '''
         Return a list of all state variables in considered by the task model
         '''
-        raise NotImplementedError
+        return self.state_only_variables + self.model_only_variables
+    
+    def state_var_ranges(self):
+        '''
+        Return a combined dictionary of all state variable ranges in considered by the task model
+        '''
+        return self.state_only_ranges | self.model_var_ranges
     
     def make_state(self,values:dict,**kwargs) -> State:
         '''

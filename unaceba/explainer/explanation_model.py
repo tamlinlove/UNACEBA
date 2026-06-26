@@ -3,6 +3,7 @@ from unaceba.explainer.task_model import TaskModel
 from unaceba.bt.nodes import LeafNode,ActionNode,ConditionNode
 from unaceba.task.state import State
 from unaceba.utils.variables import VarRange,BooleanRange,CategoricalRange
+from unaceba.explainer.causal_model import CausalModel,CausalNode
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -107,8 +108,10 @@ class ExplanationModel:
 
         self.var_funcs = self.calculate_variable_functions()
         if probabilistic:
-            self.var_cpds = self.calculate_variable_cpds()           
+            self.var_cpds = self.calculate_variable_cpds()
 
+        # Create Causal Model
+        self.cm = self.create_causal_model()
 
         #self.visualise_explanation_graph()
 
@@ -368,7 +371,27 @@ class ExplanationModel:
         
 
     def calculate_variable_functions(self) -> Dict[str,callable]:
-        pass
+        # Deterministic
+        var_funcs = {}
+        
+        # TODO: Finish
+
+
+    '''
+    CAUSAL MODELS
+    '''
+    def create_causal_model(self) -> CausalModel:
+        # Add nodes
+        for node in self.explanation_graph:
+            xnode = self.nodes[node]
+            cnode = CausalNode(
+                name=xnode.name,
+                values=self.var_ranges[node].values,
+                value=None,
+                func=self.var_funcs[node],
+                category=xnode.category
+            )
+            self.log(cnode)
 
 
     '''
