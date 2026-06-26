@@ -400,6 +400,7 @@ class ExplanationModel:
         curr_tick = 0
         curr_time = 0
         found_time = False
+        latest_time = None
 
         self.value_history = {}
         self.update_history = {}
@@ -411,9 +412,9 @@ class ExplanationModel:
                 # Oops, this shouldn't happen
                 raise ValueError(f"Reached the end of time without finding the timestep. This shouldn't happen")
             
+            update = self.em.get_update_at_timestep(next_tick,next_time)
             if next_tick == curr_tick:
                 # We haven't advanced tick, no need to reset any variables
-                update = self.em.get_update_at_timestep(next_tick,next_time)
 
                 # Update the relevant variables associated with the executed BT node
                 for btnode_id in update["update"]:
@@ -431,23 +432,55 @@ class ExplanationModel:
                     if self.em.btnodes[btnode_id].is_leaf():
                         # NOTE: Assumes that state changes do not occur on in between leaf node timesteps (i.e. always indexed on leaf node execution, not composite node execution)
                         btnode_time = self.btnode_times[btnode_id]
-                        for state_var in update["state"]:
-                            temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
-                            model_state[temporal_var] = update["state"][state_var]
+                        for state_var in self.tm.state_only_variables:
+                            if state_var in update:
+                                # Update the state variable value
+                                temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
+                                model_state[temporal_var] = update["state"][state_var]
+                            else:
+                                # Retain the old value
+                                temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
+                                old_temporal_var = self.temporal_state_vars[state_var][btnode_time]
+                                model_state[temporal_var] = model_state[old_temporal_var]
+                        latest_time = btnode_time+1
             else:
-                # TODO: Reset the BT
-                # Step 1: Set state vars at t0 to their values at the last state update
-                # Step 2: Two cases, one where root status is Running and one where root status is Success/Failure
-                # Case 1: Success/Failure
-                # In this case, we reset every node to Idle
-                # Case 2: Running
-                # In this case, check the status of every node up to and including the last updated node
-                # If the node has returned Success/Failure, but its parent has memory=False, reset them to Idle
-                # Every other case, no need to change the status of the node
-                raise NotImplementedError           
-            
-            # DEBUGGING
-            self.log(f"Done with {next_tick}:{next_time}")
+                # Reset the BT
+                # NOTE: We can assume from the rules of a BT that the btnode in this update is always a leaf node
+                for btnode_id in update["update"]:
+                    btnode_time = self.btnode_times[btnode_id]
+                    # Step 1: Set state vars at t0 (or whichever node we start at) to their values at the last known time
+                    for state_var in self.tm.state_only_variables:
+                        latest_temporal_var = self.temporal_state_vars[state_var][latest_time]
+                        new_temporal_var = self.temporal_state_vars[state_var][btnode_time]
+                        model_state[new_temporal_var] = model_state[latest_temporal_var]
+
+                    # Step 2: Two cases, one where root status is Running and one where root status is Success/Failure
+                    root_status = model_state[self.returns[self.em.root]]
+                    if root_status == NODE_RETURNS["Status.SUCCESS"] or root_status == NODE_RETURNS["Status.FAILURE"]:
+                        # Case 1: Success/Failure
+                        # In this case, we reset every node to Idle
+                        for node_id in self.returns:
+                            model_state[self.returns[node_id]] = NODE_RETURNS["Status.INVALID"]
+                            model_state[self.executions[node_id]] = False
+                    elif root_status == NODE_RETURNS["Status.RUNNING"]:
+                        # Case 2: Running
+                        # In this case, check the status of every node up to and including the last updated node
+                        for node_id in self.btnode_times:
+                            if self.em.btnodes[node_id].is_root():
+                                # Always reset root
+                                model_state[self.returns[node_id]] = NODE_RETURNS["Status.INVALID"]
+                                model_state[self.executions[node_id]] = False
+                            else:
+                                node_status = model_state[self.returns[node_id]]
+                                parent_memory = self.em.btnodes[node_id].parent.memory
+                                if not parent_memory and node_status in [NODE_RETURNS["Status.FAILURE"],NODE_RETURNS["Status.SUCCESS"]]:
+                                    # If the node has returned Success/Failure, but its parent has memory=False, reset them to Idle
+                                    # Every other case, no need to change the status of the node
+                                    model_state[self.returns[node_id]] = NODE_RETURNS["Status.INVALID"]
+                                    model_state[self.executions[node_id]] = False 
+                    else:
+                        # Root is somehow Idle, shouldn't be here
+                        raise NotImplementedError("Cannot handle BT reset with Idle root")          
 
             curr_tick = next_tick
             curr_time = next_time

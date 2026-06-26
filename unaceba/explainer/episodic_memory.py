@@ -182,7 +182,7 @@ class EpisodicMemory:
             return tick,time+1
         elif tick+1 in self.timesteps:
             # Next tick
-            return tick+1,0
+            return tick+1,time+1
         else:
             # Reached the end
             return None,None
