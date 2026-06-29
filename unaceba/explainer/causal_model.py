@@ -51,8 +51,11 @@ class CausalNode:
         self.value = value
         self.category = category
 
-    def run(self,state:State):
-        return self.func(state=state)
+    def __str__(self):
+        return f"CausalNode: {self.name}"
+
+    def run(self,state:State,model_state:dict):
+        return self.func(state=state,model_state=model_state)
     
 class CausalModel:
     '''
@@ -80,7 +83,10 @@ class CausalModel:
             if not (edge in self.graph.edges):
                 self.graph.add_edge(edge[0],edge[1])
         else:
-            raise ValueError("Nodes described by edge must be added to causal model before edge")
+            if edge[0] not in self.nodes:
+                raise ValueError(f"Node {edge[0]} must be added to graph before edge {edge[0]}->{edge[1]} can be added")
+            else:
+                raise ValueError(f"Node {edge[1]} must be added to graph before edge {edge[0]}->{edge[1]} can be added")
         
     def add_edges(self,edges:list[tuple[str,str]]):
         for edge in edges:

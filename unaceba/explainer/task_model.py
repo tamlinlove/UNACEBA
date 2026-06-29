@@ -23,6 +23,8 @@ class TaskModel:
         self.model_var_ranges:Dict[str,VarRange] = {}
         self.model_semantic_dict:Dict[str,str] = {}
 
+        self.function_dict:Dict[str,callable] = {}
+
     '''
     Task model definitions
     '''

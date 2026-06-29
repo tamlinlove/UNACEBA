@@ -91,12 +91,14 @@ class ExplanationModel:
 
         # Add temporal versions of state variables
         self.temporal_state_vars:Dict[str,str] = {}
+        self.state_var_names:Dict[str,str] = {}
         self.explanation_graph = self.add_states_to_graph(
             graph=self.explanation_graph,
             nodes=self.nodes,
             executions=self.executions,
             returns=self.returns,
-            temporal_state_vars=self.temporal_state_vars
+            temporal_state_vars=self.temporal_state_vars,
+            state_var_names=self.state_var_names,
         )
 
         # Create parent/children dictionaries for easy retrieval of parents
@@ -106,7 +108,7 @@ class ExplanationModel:
         # Create ranges and functions(cpds)
         self.var_ranges = self.calculate_ranges()
 
-        self.var_funcs = self.calculate_variable_functions()
+        # NOTE: Might remove, see how functions are handled when creating CausalNodes
         if probabilistic:
             self.var_cpds = self.calculate_variable_cpds()
 
@@ -184,7 +186,8 @@ class ExplanationModel:
         nodes:Dict[str,ExplanationModelNode],
         executions:dict[str,str],
         returns:dict[str,str],
-        temporal_state_vars:dict[str,str]
+        temporal_state_vars:dict[str,str],
+        state_var_names:dict[str,str]
     ) -> nx.DiGraph:
         
         # Create a temporal state at each timestep
@@ -195,6 +198,7 @@ class ExplanationModel:
                 temporal_state_var = ExplanationModelNode.node_from_state(var,t)
                 temporal_state_vars[var].append(temporal_state_var.id)
                 nodes[temporal_state_var.id] = temporal_state_var
+                state_var_names[temporal_state_var.id] = var
 
         # Add edges
         for t in range(num_timesteps):
@@ -368,30 +372,65 @@ class ExplanationModel:
         
         # Shouldn't be here
         raise ValueError(f"Unknown parent type: {memory_node.parent.category}")
-        
-
-    def calculate_variable_functions(self) -> Dict[str,callable]:
-        # Deterministic
-        var_funcs = {}
-        
-        # TODO: Finish
 
 
     '''
     CAUSAL MODELS
     '''
+    def build_execution_node(self,xnode:ExplanationModelNode) -> CausalNode:
+        def func(state: State, model_state: dict) -> bool:
+            return self.execution_function(node_id=xnode.id,explanation_model_vals=model_state)
+        return CausalNode(
+            name=xnode.id,
+            values=self.var_ranges[xnode.id].values,
+            value=None,
+            func=func,
+            category=EXECUTION_CATEGORY,
+        )
+    
+    def build_return_node(self, xnode:ExplanationModelNode) -> CausalNode:
+        def func(state: State, model_state: dict) -> py_trees.common.Status:
+            return self.return_function(xnode.id, model_state, state)
+        return CausalNode(
+            name=xnode.id,
+            values=self.var_ranges[xnode.id].values,
+            value=None,
+            func=func,
+            category=RETURN_CATEGORY,
+        )
+    
+    def build_state_var_node(self, xnode:ExplanationModelNode) -> CausalNode:
+        return CausalNode(
+            name=xnode.name,
+            values=self.var_ranges[xnode.id].values,
+            value=None,
+            func=self.tm.function_dict[self.state_var_names[xnode.id]],
+            category=STATE_CATEGORY,
+        )
+
     def create_causal_model(self) -> CausalModel:
+        cm = CausalModel(state_model=self.tm, ros_node=self.ros_node)
+
         # Add nodes
         for node in self.explanation_graph:
             xnode = self.nodes[node]
-            cnode = CausalNode(
-                name=xnode.name,
-                values=self.var_ranges[node].values,
-                value=None,
-                func=self.var_funcs[node],
-                category=xnode.category
-            )
-            self.log(cnode)
+            if xnode.category == EXECUTION_CATEGORY:
+                cnode = self.build_execution_node(xnode)
+            elif xnode.category == RETURN_CATEGORY:
+                cnode = self.build_return_node(xnode)
+            elif xnode.category == STATE_CATEGORY:
+                cnode = self.build_state_var_node(xnode)
+            else:
+                # Oops, shouldn't be here
+                raise ValueError(f"Unrecognised node category {xnode.category}")
+            
+            cm.add_node(cnode)
+
+        # Add edges
+        cm.add_edges(self.explanation_graph.edges)
+
+        return cm
+
 
 
     '''
