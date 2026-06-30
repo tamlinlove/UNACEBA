@@ -39,6 +39,9 @@ class VarRange:
     def is_continuous(self):
         return False
     
+    def is_discretised(self):
+        return False
+    
     def add_value(self,value):
         '''
         Adds a value to the list of allowed variable values, if possible
@@ -267,6 +270,9 @@ class DiscretisedRange(ContinuousRange):
 
     def is_continuous(self):
         return False
+    
+    def is_discretised(self):
+        return True
 
 class BooleanRange(VarRange):
     '''

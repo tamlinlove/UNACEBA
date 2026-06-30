@@ -12,6 +12,10 @@ else:
         from typing import Self
     except ImportError:
         from typing_extensions import Self
+from unittest.mock import MagicMock
+
+from unaceba.bt.rosnodes import RosLeafNode
+from unaceba.utils.fake_ros import FakeRosNode,FakeFuture
 
 class MemoryNode:
     def __init__(self,id:str,name:str,category:str,behaviour:py_trees.behaviour.Behaviour=None,memory:bool=None):
@@ -96,7 +100,7 @@ class EpisodicMemory:
         # Read file
         with open(filepath, 'r') as file:
             self.data = json.load(file)
-
+            
         # State class
         module = importlib.import_module(self.data["state"]["module"])
         self.state_class = getattr(module, self.data["state"]["class"])
@@ -136,6 +140,9 @@ class EpisodicMemory:
                 cls = getattr(module, node_data["class"])
                 behaviour = cls()
 
+                # Mock ROS stuff
+                self.mock_for_execute(behaviour)
+
                 btnodes[node] = MemoryNode(node,name_num,category,behaviour=behaviour)
             elif category in ["Sequence","Fallback"]:
                 memory = node_data["memory"]
@@ -166,6 +173,32 @@ class EpisodicMemory:
                 for t in data[tick]:
                     ticks[tick_int].append(int(t))
         return ticks
+    
+    def mock_for_execute(self, node:RosLeafNode, *, succeeded=True, message="ok", **result_fields):
+        """
+        Prepares a RosLeafNode subclass instance so execute() can be called
+        in isolation, without real ROS, networking, or side effects.
+        """
+        node._ros_node = FakeRosNode()
+
+        result = MagicMock()
+        result.success = succeeded
+        result.message = message
+        for k, v in result_fields.items():
+            setattr(result, k, v)
+
+        fake_result_future = FakeFuture(result=MagicMock(result=result))
+
+        if hasattr(node, "_goal_handle_future"):
+            node._accepted = True
+            node._goal_handle_future = FakeFuture()  # not actually read once accepted=True
+            node._result_future = fake_result_future
+        if hasattr(node, "_response_future"):
+            resp = MagicMock(success=succeeded, message=message)
+            node._response_future = FakeFuture(result=resp)
+            node._sent = True
+
+        return node
     
     '''
     LOADING OPERATIONS

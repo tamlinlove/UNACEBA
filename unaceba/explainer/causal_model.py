@@ -128,69 +128,62 @@ class CausalModel:
                     break
         return reduced_order
     
-    def propagate_interventions(self,order:list[str],state:State) -> None:
-        '''
-        Propagate interventions throughout the causal model, given an order of effects
-
-        Parameters
-        -----------
-        order : list[str]
-            the order in which functions are run
-        state : State
-            the counterfactual state that is affected by the interventions
-        '''
+    def propagate_interventions(
+            self,
+            order:list[str],
+            model_state:dict[str],
+            state_var_names:dict[str,str]
+    ) -> None:
         for node in order:
-            new_val = self.state_model.run(node,state)
-            state.set_value(node,new_val)
+            # First of all, make a state at the relevant time of the variable function being run
+            node_parents = self.parents(node)
+            state_vals = {
+                state_var_names[parent]:model_state[parent] for parent in node_parents if parent in state_var_names
+            }
+            state = self.state_model.make_state(state_vals)
 
-    def intervene(self,state:State,interventions:dict,search_graph:nx.DiGraph) -> tuple[nx.DiGraph,State]:
-        '''
-        Perform interventions on a causal model
+            # # DEBUGGING
+            # self.log("======================")
+            # self.log(f"Propagating to {node}")
+            # self.log(f"Node {node} has parents {node_parents}")
+            # for par in node_parents:
+            #     self.log(f"Model_state[{par}] = {model_state[par]}")
+            # self.log(f"CM State: {state.values}")
 
-        Parameters
-        -------------
-        state : State
-            the state to be intervened on
-        interventions : dict
-            dict mapping node names to intervention values - these are the nodes being intervened on
-        search_graph : nx.DiGraph
-            the graph over which interventions are being performed
+            # Run the relevant function for the node
+            new_val = self.nodes[node].run(state,model_state)
 
-        Output
-        ------------
-        new_graph : nx.DiGraph
-            the edited graph after the Do operator has been performed on the nodes in interventions
-        new_state : State
-            the updated state (a copy) reflecting the performed interventions
-        '''
-        # Validate
-        for node in interventions:
-            if node not in self.nodes:
-                raise ValueError(f"Unrecognised node {node}")
-            
-            if interventions[node] not in self.nodes[node].values:
-                raise ValueError(f"Invalid value {interventions[node]} for node {node}")
-            
-        
-        # Copy
+            # self.log(f"New value for {node} is {new_val}")
+
+            # Update model state
+            model_state[node] = new_val
+
+    def intervene(
+            self,
+            interventions:dict[str],
+            search_graph:nx.DiGraph,
+            model_state:dict[str],
+            state_var_names:dict[str,str]
+    ) -> tuple[nx.DiGraph,dict[str]]:
+        # Copy before intervening
         new_graph = nx.DiGraph(search_graph)
-        new_state = self.state_model.copy_state(state)
-        
-        for node in interventions:
-            # Remove parents
-            for parent in self.parents(node):
-                # Check if parent has already been removed e.g. for variables that are not allowed to be intervened on
+        new_model_state = copy.deepcopy(model_state)
+
+        # Do operator - cut incoming edges
+        for ivar in interventions:
+            for parent in self.parents(ivar):
                 if parent in new_graph.nodes:
-                    new_graph.remove_edge(parent,node)
+                    new_graph.remove_edge(parent,ivar)
 
-            # Set new values
-            new_state.set_value(node,interventions[node])
+            # Apply values
+            new_model_state[ivar] = interventions[ivar]
+        
 
-        # Propagate changes throughout model
+        # Propagate changes through the graph
         order = self.propagation_order(list(interventions.keys()),new_graph)
-        self.propagate_interventions(order,new_state)
+        self.propagate_interventions(order,new_model_state,state_var_names)
 
-        return new_graph,new_state
+        return new_graph,new_model_state
     
     '''
     VISUALISE

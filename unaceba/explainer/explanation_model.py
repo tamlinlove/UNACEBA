@@ -90,7 +90,7 @@ class ExplanationModel:
         self.btnode_times = self.assign_times_to_bt_nodes()
 
         # Add temporal versions of state variables
-        self.temporal_state_vars:Dict[str,str] = {}
+        self.temporal_state_vars:Dict[str,list] = {}
         self.state_var_names:Dict[str,str] = {}
         self.explanation_graph = self.add_states_to_graph(
             graph=self.explanation_graph,
@@ -186,7 +186,7 @@ class ExplanationModel:
         nodes:Dict[str,ExplanationModelNode],
         executions:dict[str,str],
         returns:dict[str,str],
-        temporal_state_vars:dict[str,str],
+        temporal_state_vars:dict[str,list],
         state_var_names:dict[str,str]
     ) -> nx.DiGraph:
         
@@ -268,7 +268,7 @@ class ExplanationModel:
 
         return env_inputs,env_outputs
     
-    def calculate_parents(self):
+    def calculate_parents(self) -> dict[str,list]:
         return {n: list(self.explanation_graph.predecessors(n)) for n in self.explanation_graph.nodes()}
     
     def calculate_children(self):
@@ -377,6 +377,26 @@ class ExplanationModel:
     '''
     CAUSAL MODELS
     '''
+    def intervene(
+            self,
+            interventions:dict[str],
+            search_graph:nx.DiGraph,
+            model_state:dict[str],
+    ) -> tuple[nx.DiGraph,dict[str]]:
+        return self.cm.intervene(interventions,search_graph,model_state,self.state_var_names)
+        
+
+    def can_intervene(self,node:str) -> bool:
+        xnode = self.nodes[node]
+        if xnode.category == EXECUTION_CATEGORY or xnode.category == RETURN_CATEGORY:
+            # Can always intervene on BT variables
+            return True
+        elif xnode.category == STATE_CATEGORY:
+            return self.tm.can_intervene(self.state_var_names[node])
+        else:
+            # Oops, shouldn't be here
+            raise ValueError(f"Unrecognised node category {xnode.category}")
+
     def build_execution_node(self,xnode:ExplanationModelNode) -> CausalNode:
         def func(state: State, model_state: dict) -> bool:
             return self.execution_function(node_id=xnode.id,explanation_model_vals=model_state)
@@ -400,11 +420,30 @@ class ExplanationModel:
         )
     
     def build_state_var_node(self, xnode:ExplanationModelNode) -> CausalNode:
+        # Get parent categories
+        parent_cats = [self.nodes[parent].category for parent in self.parents[xnode.name]]
+
+        if EXECUTION_CATEGORY in parent_cats:
+            # The value of the variable depends on a BT node function
+            execution_parent = self.parents[xnode.name][parent_cats.index(EXECUTION_CATEGORY)]
+            btnode:LeafNode = self.em.btnodes[self.nodes[execution_parent].btnode_id].behaviour
+            
+            def func(state: State, model_state: dict):
+                # Execute the BT
+                btnode.execute(state)
+                # Extract the variable
+                state_var = self.state_var_names[xnode.name]
+                return state.get_value(state_var)
+
+        else:
+            # The value of the variable depends entirely on the state
+            func=self.tm.function_dict[self.state_var_names[xnode.id]]
+
         return CausalNode(
             name=xnode.name,
             values=self.var_ranges[xnode.id].values,
             value=None,
-            func=self.tm.function_dict[self.state_var_names[xnode.id]],
+            func=func,
             category=STATE_CATEGORY,
         )
 
@@ -442,6 +481,10 @@ class ExplanationModel:
     '''
     LOADING
     '''
+    def update_model_state(self,model_state:dict,var:str,value) -> dict:
+        model_state[var] = value
+        return model_state
+
     def model_state_at_timestep(self,timestep_tick:int=None,timestep_time:int=None) -> dict:
         # Handle None inputs
         if timestep_tick is None:
@@ -464,9 +507,6 @@ class ExplanationModel:
         found_time = False
         latest_time = None
 
-        self.value_history = {}
-        self.update_history = {}
-
         while not found_time:
             next_tick,next_time = self.em.get_next_timestep(curr_tick,curr_time)
             
@@ -481,29 +521,29 @@ class ExplanationModel:
                 # Update the relevant variables associated with the executed BT node
                 for btnode_id in update["update"]:
                     # Node has been executed
-                    model_state[self.executions[btnode_id]] = True
+                    model_state = self.update_model_state(model_state,self.executions[btnode_id],True)
                     # Status has been updated
-                    model_state[self.returns[btnode_id]] = NODE_RETURNS[update["update"][btnode_id]["status"]]
+                    model_state = self.update_model_state(model_state,self.returns[btnode_id],NODE_RETURNS[update["update"][btnode_id]["status"]])
 
                     # Updating a leaf node implies all parents have been executed
                     ancestors = self.em.get_BT_ancestors(btnode_id)
                     for anc in ancestors:
-                        model_state[self.executions[anc]] = True
+                        model_state = self.update_model_state(model_state,self.executions[anc],True)
 
                     # Update all state variables
                     if self.em.btnodes[btnode_id].is_leaf():
                         # NOTE: Assumes that state changes do not occur on in between leaf node timesteps (i.e. always indexed on leaf node execution, not composite node execution)
                         btnode_time = self.btnode_times[btnode_id]
                         for state_var in self.tm.state_only_variables:
-                            if state_var in update:
+                            if state_var in update["state"]:
                                 # Update the state variable value
                                 temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
-                                model_state[temporal_var] = update["state"][state_var]
+                                model_state = self.update_model_state(model_state,temporal_var,update["state"][state_var])
                             else:
                                 # Retain the old value
                                 temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
                                 old_temporal_var = self.temporal_state_vars[state_var][btnode_time]
-                                model_state[temporal_var] = model_state[old_temporal_var]
+                                model_state = self.update_model_state(model_state,temporal_var,model_state[old_temporal_var])
                         latest_time = btnode_time+1
             else:
                 # Reset the BT
@@ -514,7 +554,7 @@ class ExplanationModel:
                     for state_var in self.tm.state_only_variables:
                         latest_temporal_var = self.temporal_state_vars[state_var][latest_time]
                         new_temporal_var = self.temporal_state_vars[state_var][btnode_time]
-                        model_state[new_temporal_var] = model_state[latest_temporal_var]
+                        model_state = self.update_model_state(model_state,new_temporal_var,model_state[latest_temporal_var])
 
                     # Step 2: Two cases, one where root status is Running and one where root status is Success/Failure
                     root_status = model_state[self.returns[self.em.root]]
@@ -522,24 +562,24 @@ class ExplanationModel:
                         # Case 1: Success/Failure
                         # In this case, we reset every node to Idle
                         for node_id in self.returns:
-                            model_state[self.returns[node_id]] = NODE_RETURNS["Status.INVALID"]
-                            model_state[self.executions[node_id]] = False
+                            model_state = self.update_model_state(model_state,self.returns[node_id],NODE_RETURNS["Status.INVALID"])
+                            model_state = self.update_model_state(model_state,self.executions[node_id],False)
                     elif root_status == NODE_RETURNS["Status.RUNNING"]:
                         # Case 2: Running
                         # In this case, check the status of every node up to and including the last updated node
                         for node_id in self.btnode_times:
                             if self.em.btnodes[node_id].is_root():
                                 # Always reset root
-                                model_state[self.returns[node_id]] = NODE_RETURNS["Status.INVALID"]
-                                model_state[self.executions[node_id]] = False
+                                model_state = self.update_model_state(model_state,self.returns[node_id],NODE_RETURNS["Status.INVALID"])
+                                model_state = self.update_model_state(model_state,self.executions[node_id],False)
                             else:
                                 node_status = model_state[self.returns[node_id]]
                                 parent_memory = self.em.btnodes[node_id].parent.memory
                                 if not parent_memory and node_status in [NODE_RETURNS["Status.FAILURE"],NODE_RETURNS["Status.SUCCESS"]]:
                                     # If the node has returned Success/Failure, but its parent has memory=False, reset them to Idle
                                     # Every other case, no need to change the status of the node
-                                    model_state[self.returns[node_id]] = NODE_RETURNS["Status.INVALID"]
-                                    model_state[self.executions[node_id]] = False 
+                                    model_state = self.update_model_state(model_state,self.returns[node_id],NODE_RETURNS["Status.INVALID"])
+                                    model_state = self.update_model_state(model_state,self.executions[node_id],False)
                     else:
                         # Root is somehow Idle, shouldn't be here
                         raise NotImplementedError("Cannot handle BT reset with Idle root")          
@@ -559,7 +599,12 @@ class ExplanationModel:
         }
         state = self.tm.make_state(state_vals)
         return state
-
+    
+    def get_temporal_index_at_timestep(self,tick:int,time:int) -> int:
+        # Get the updated BT node
+        # Return btnode time + 1
+        update = self.em.get_update_at_timestep(tick,time)
+        return self.btnode_times[next(iter(update["update"]))] + 1
 
     def initial_state(self) -> dict:
         model_state = {node_id:None for node_id in self.nodes}
@@ -569,20 +614,20 @@ class ExplanationModel:
             node = self.nodes[node_id]
             if node.is_execution():
                 # Initial state : nothing has been executed yet
-                model_state[node_id] = False
+                model_state = self.update_model_state(model_state,node_id,False)
             elif node.is_return():
                 # Initial state : nothing has returned a status yet
-                model_state[node_id] = py_trees.common.Status.INVALID
+                model_state = self.update_model_state(model_state,node_id,py_trees.common.Status.INVALID)
 
         # Add initial timestep values for state variables
         for state_var in self.tm.state_only_variables:
-            model_state[self.temporal_state_vars[state_var][0]] = self.em.get_state_var_value_at_time(state_var,0,0)
+            model_state = self.update_model_state(model_state,self.temporal_state_vars[state_var][0],self.em.get_state_var_value_at_time(state_var,0,0))
 
         # Add initial timestep values for model variables
         initial_state = self.get_state_at_time(model_state,time=0)
         model_var_vals = self.tm.calculate_model_var_values(initial_state)
         for model_var in self.tm.model_only_variables:
-            model_state[self.temporal_state_vars[model_var][0]] = model_var_vals[model_var]
+            model_state = self.update_model_state(model_state,self.temporal_state_vars[model_var][0],model_var_vals[model_var])
     
         return model_state
         
