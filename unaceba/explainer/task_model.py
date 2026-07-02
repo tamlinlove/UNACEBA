@@ -11,7 +11,7 @@ class TaskModel:
         # Setup blackboard
         self.board = py_trees.blackboard.Client(name="Board")
         self.board.register_key("environment", access=py_trees.common.Access.WRITE)
-        self.board.environment:Environment
+        self.board.environment:Environment = None
 
         # Class attributes
         self.discretisation_size = discretisation_size
