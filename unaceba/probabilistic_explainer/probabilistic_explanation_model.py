@@ -1,4 +1,4 @@
-from unaceba.explainer.explanation_model import ExplanationModel
+from unaceba.explainer.explanation_model import ExplanationModel,ExplanationModelNode
 
 class ProbabilisticExplanationModel(ExplanationModel):
     def __init__(self, episodic_memory, task_model, probabilistic = True, ros_node = None):

@@ -25,6 +25,8 @@ class TaskModel:
 
         self.function_dict:Dict[str,callable] = {}
 
+        self.all_ranges:Dict[str,VarRange] = {}
+
     '''
     Task model definitions
     '''

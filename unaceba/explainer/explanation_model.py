@@ -98,7 +98,7 @@ class ExplanationModel:
         self.parents = self.calculate_parents()
         self.children = self.calculate_children()
 
-        # Create ranges and functions(cpds)
+        # Create ranges
         self.var_ranges = self.calculate_ranges()
 
         # Create Causal Model
@@ -285,7 +285,7 @@ class ExplanationModel:
                 ranges[return_node.id].add_value(py_trees.common.Status.RUNNING)
 
         # Add state variable ranges
-        state_var_ranges = self.tm.calculate_state_var_ranges()
+        state_var_ranges = self.tm.all_ranges
         for var in state_var_ranges:
             for var_t in self.temporal_state_vars[var]:
                 ranges[var_t] = state_var_ranges[var]
