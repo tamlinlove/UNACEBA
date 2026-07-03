@@ -4,6 +4,13 @@ from typing import List
 from unaceba.task.state import State
 from unaceba.bt.log_node import LogNode
 
+NODE_RETURNS = {
+    "Status.SUCCESS":py_trees.common.Status.SUCCESS,
+    "Status.FAILURE":py_trees.common.Status.FAILURE,
+    "Status.RUNNING":py_trees.common.Status.RUNNING,
+    "Status.INVALID":py_trees.common.Status.INVALID,
+}
+
 class LeafNode(py_trees.behaviour.Behaviour):
     '''
     Class for leaf nodes in a BT

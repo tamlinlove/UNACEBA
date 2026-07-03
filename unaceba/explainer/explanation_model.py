@@ -1,6 +1,6 @@
 from unaceba.explainer.episodic_memory import EpisodicMemory,MemoryNode
 from unaceba.explainer.task_model import TaskModel
-from unaceba.bt.nodes import LeafNode,ActionNode,ConditionNode
+from unaceba.bt.nodes import LeafNode,NODE_RETURNS
 from unaceba.task.state import State
 from unaceba.utils.variables import VarRange,BooleanRange,CategoricalRange
 from unaceba.explainer.causal_model import CausalModel,CausalNode
@@ -14,13 +14,6 @@ from rclpy.node import Node
 EXECUTION_CATEGORY = "Execution"
 RETURN_CATEGORY = "Return"
 STATE_CATEGORY = "State"
-
-NODE_RETURNS = {
-    "Status.SUCCESS":py_trees.common.Status.SUCCESS,
-    "Status.FAILURE":py_trees.common.Status.FAILURE,
-    "Status.RUNNING":py_trees.common.Status.RUNNING,
-    "Status.INVALID":py_trees.common.Status.INVALID,
-}
 
 class ExplanationModelNode:
     def __init__(self,node_id:str,node_name:str,category:str,btnode_id:str=None,var_name:str=None,time_index:int=None):
@@ -107,10 +100,6 @@ class ExplanationModel:
 
         # Create ranges and functions(cpds)
         self.var_ranges = self.calculate_ranges()
-
-        # NOTE: Might remove, see how functions are handled when creating CausalNodes
-        if probabilistic:
-            self.var_cpds = self.calculate_variable_cpds()
 
         # Create Causal Model
         self.cm = self.create_causal_model()
@@ -470,14 +459,6 @@ class ExplanationModel:
 
         return cm
 
-
-
-    '''
-    PROBABILISTIC ELEMENTS
-    '''
-    def calculate_variable_cpds(self):
-        pass
-
     '''
     LOADING
     '''
@@ -630,10 +611,7 @@ class ExplanationModel:
             model_state = self.update_model_state(model_state,self.temporal_state_vars[model_var][0],model_var_vals[model_var])
     
         return model_state
-        
 
-         
-    
     '''
     VISUALISATION
     '''
