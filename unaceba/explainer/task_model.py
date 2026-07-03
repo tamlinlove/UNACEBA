@@ -61,7 +61,24 @@ class TaskModel:
         '''
         Return a dict mapping state variable names to their ranges as VarRange objects, including necessary modelling abstractions such as discretisation
         '''
-        raise NotImplementedError
+        ranges = {}
+
+        # Start with the ranges defined already by the state
+        state_ranges:Dict[str,VarRange] = self.state_only_ranges
+        for var in state_ranges:
+            if state_ranges[var].is_continuous():
+                # We need to discretise
+                ranges[var] = state_ranges[var].discretise(size=self.discretisation_size)
+            else:
+                # Cannot discretise, return as is
+                ranges[var] = state_ranges[var]
+
+        # Now add the ranges defines by the task model
+        model_state_ranges = self.model_var_ranges
+        for var in model_state_ranges:
+            ranges[var] = model_state_ranges[var]
+
+        return ranges
 
 
     '''
