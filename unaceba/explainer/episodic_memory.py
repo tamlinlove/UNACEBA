@@ -18,9 +18,10 @@ from unaceba.bt.rosnodes import RosLeafNode
 from unaceba.utils.fake_ros import FakeRosNode,FakeFuture
 
 class MemoryNode:
-    def __init__(self,id:str,name:str,category:str,behaviour:py_trees.behaviour.Behaviour=None,memory:bool=None):
+    def __init__(self,id:str,name:str,behaviour_name:str,category:str,behaviour:py_trees.behaviour.Behaviour=None,memory:bool=None):
         self.id = id
         self.name = name
+        self.behaviour_name = behaviour_name
         self.parent:Self = None
         self.category = category
         if self.is_leaf():
@@ -143,11 +144,11 @@ class EpisodicMemory:
                 # Mock ROS stuff
                 self.mock_for_execute(behaviour)
 
-                btnodes[node] = MemoryNode(node,name_num,category,behaviour=behaviour)
+                btnodes[node] = MemoryNode(node,name_num,name,category,behaviour=behaviour)
             elif category in ["Sequence","Fallback"]:
                 memory = node_data["memory"]
 
-                btnodes[node] = MemoryNode(node,name_num,category,memory=memory)
+                btnodes[node] = MemoryNode(node,name_num,name,category,memory=memory)
 
         # Create edges
         for node in tree_data:

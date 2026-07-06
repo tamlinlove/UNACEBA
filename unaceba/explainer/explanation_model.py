@@ -97,6 +97,7 @@ class ExplanationModel:
         # Create parent/children dictionaries for easy retrieval of parents
         self.parents = self.calculate_parents()
         self.children = self.calculate_children()
+        self.explanation_nodes_ordered = self.calculate_ordering()
 
         # Create ranges
         self.var_ranges = self.calculate_ranges()
