@@ -263,6 +263,9 @@ class ExplanationModel:
     def calculate_children(self):
         return {n: list(self.explanation_graph.successors(n)) for n in self.explanation_graph.nodes()}
     
+    def calculate_ordering(self) -> list:
+        return list(nx.topological_sort(self.explanation_graph))
+    
     '''
     VARIABLE RANGES
     '''
