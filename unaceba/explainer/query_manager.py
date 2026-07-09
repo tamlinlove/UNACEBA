@@ -9,6 +9,7 @@ class QueryManager:
     def __init__(self,explainer:Explainer,ros_node:Node=None):
         self.explainer = explainer
         self.ros_node = ros_node
+        self.query_class = Query
 
     '''
     DEBUGGING
@@ -79,4 +80,4 @@ class QueryManager:
             if real_var_val in proper_foil[foil_var]:
                 proper_foil[foil_var].remove(real_var_val)
 
-        return Query(proper_foil,self.explainer.explanation_model,model_state=model_state)
+        return self.query_class(proper_foil,self.explainer.explanation_model,model_state=model_state)

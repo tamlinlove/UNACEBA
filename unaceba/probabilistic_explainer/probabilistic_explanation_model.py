@@ -6,6 +6,43 @@ from unaceba.explainer.explanation_model import ExplanationModel,ExplanationMode
 from unaceba.probabilistic_explainer.probabilistic_causal_model import ProbabilisticCausalModel,ProbabilisticCausalNode
 from unaceba.probabilistic_explainer.probabilistic_task_model import ProbabilisticTaskModel
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Self
+else:
+    try:
+        from typing import Self
+    except ImportError:
+        from typing_extensions import Self
+
+class ModelStateValue:
+    '''
+    Represents the value (or probability distribution over values) of a variable in the model state
+    '''
+    def __init__(self,value):
+        self.add_value(value)
+
+    def __str__(self):
+        if self.probabilistic:
+            return str(self.distribution)
+        else:
+            return str(self.value)
+        
+    def __eq__(self, value):
+        if isinstance(value,ModelStateValue):
+            return self.value == value.value
+        else:
+            return self.value == value
+
+    def add_value(self,value):
+        self.value = value
+        self.distribution = None
+        self.probabilistic = False
+
+    def add_distribution(self,distribution:dict):
+        self.value = None
+        self.distribution = distribution
+        self.probabilistic = True
 
 class ProbabilisticExplanationModel(ExplanationModel):
     def __init__(self, episodic_memory, task_model, probabilistic = True, ros_node = None):
@@ -17,8 +54,6 @@ class ProbabilisticExplanationModel(ExplanationModel):
     '''
     CAUSAL MODELS
     '''
-
-
     def build_execution_node(self,xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
         def func(state: State, model_state: dict) -> bool:
             return self.execution_function(node_id=xnode.id,explanation_model_vals=model_state)
@@ -133,3 +168,12 @@ class ProbabilisticExplanationModel(ExplanationModel):
         cm.add_edges(self.explanation_graph.edges)
 
         return cm
+
+    '''
+    LOADING
+    '''
+    def model_state_at_timestep(self, timestep_tick = None, timestep_time = None):
+        model_state = super().model_state_at_timestep(timestep_tick, timestep_time)
+        for var in model_state:
+            model_state[var] = ModelStateValue(model_state[var])
+        return model_state
