@@ -7,6 +7,7 @@ from typing import List
 import networkx as nx
 import copy
 import itertools
+import matplotlib.pyplot as plt
 
 class Explainer:
     def __init__(self,explanation_model:ExplanationModel):
@@ -112,4 +113,45 @@ class Explainer:
                 combinations.append(change)
 
         return combinations
+    
+    '''
+    VISUALISATION
+    '''
+    def visualise_graph(self, G, layout="spring", node_size=800, node_color="skyblue", font_size=10, ax=None, title=None):
+        layouts = {
+            "spring": nx.spring_layout,
+            "circular": nx.circular_layout,
+            "kamada_kawai": nx.kamada_kawai_layout,
+            "shell": nx.shell_layout,
+            "planar": nx.planar_layout,
+        }
+        if layout not in layouts:
+            raise ValueError(f"Unknown layout '{layout}'. Choose from {list(layouts)}")
+
+        pos = layouts[layout](G)
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+        nx.draw_networkx_nodes(G, pos, node_size=node_size, node_color=node_color, ax=ax)
+        nx.draw_networkx_labels(G, pos, font_size=font_size, ax=ax)
+        nx.draw_networkx_edges(
+            G, pos,
+            arrowstyle="-|>",
+            arrowsize=15,
+            node_size=node_size,
+            connectionstyle="arc3,rad=0.1",  # curves edges slightly, helps show reciprocal edges
+            ax=ax,
+        )
+
+        # Optionally draw edge weights if present
+        edge_labels = nx.get_edge_attributes(G, "weight")
+        if edge_labels:
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=font_size - 2, ax=ax)
+
+        if title:
+            ax.set_title(title)
+        ax.axis("off")
+
+        return ax
 
