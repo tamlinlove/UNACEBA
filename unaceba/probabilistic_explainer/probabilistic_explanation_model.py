@@ -1,12 +1,17 @@
 import py_trees
+import networkx as nx
+import hashlib
+import random
 
 from unaceba.task.state import State
 from unaceba.bt.nodes import LeafNode
+from unaceba.utils.variables import VarRange,NormalisedFloatRange
+from unaceba.explainer.episodic_memory import MemoryNode
 from unaceba.explainer.explanation_model import ExplanationModel,ExplanationModelNode,EXECUTION_CATEGORY,RETURN_CATEGORY,STATE_CATEGORY
 from unaceba.probabilistic_explainer.probabilistic_causal_model import ProbabilisticCausalModel,ProbabilisticCausalNode
 from unaceba.probabilistic_explainer.probabilistic_task_model import ProbabilisticTaskModel
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING,Dict
 if TYPE_CHECKING:
     from typing import Self
 else:
@@ -14,6 +19,8 @@ else:
         from typing import Self
     except ImportError:
         from typing_extensions import Self
+
+EXOGENOUS_CATEGORY = "Exogenous"
 
 class ModelStateValue:
     '''
@@ -44,12 +51,102 @@ class ModelStateValue:
         self.distribution = distribution
         self.probabilistic = True
 
+class ProbabilisticExplanationModelNode(ExplanationModelNode):
+    allowed_bt_categories = [EXECUTION_CATEGORY,RETURN_CATEGORY,EXOGENOUS_CATEGORY]
+
+    def __init__(self, node_id, node_name, category, btnode_id = None, var_name = None, time_index = None):
+        super().__init__(node_id, node_name, category, btnode_id, var_name, time_index)
+
+    '''
+    UTILS
+    '''
+    def is_exogenous(self):
+        return self.category == EXOGENOUS_CATEGORY
+
 class ProbabilisticExplanationModel(ExplanationModel):
     def __init__(self, episodic_memory, task_model, probabilistic = True, ros_node = None):
         super().__init__(episodic_memory, task_model, probabilistic, ros_node)
 
         # Typing
         self.tm:ProbabilisticTaskModel
+
+    '''
+    INITIALISATION
+    '''
+    def init_model_dictionaries(self):
+        super().init_model_dictionaries()
+
+        # Exogenous Variables
+        self.exogenouses:Dict[str,str] = {}
+
+    '''
+    EXPLANATION GRAPH
+    '''
+    def create_graph_from_bt(
+            self,
+            nodes:Dict[str,ExplanationModelNode],
+            executions:dict[str,str],
+            returns:dict[str,str],
+        ) -> nx.DiGraph:
+        graph = super().create_graph_from_bt(nodes,executions,returns)
+
+        # Add exogenous nodes for each stochastic BT node
+        for btnode_id in self.em.btnodes:
+            btnode:MemoryNode = self.em.btnodes[btnode_id]
+
+            # Check if BT node is stochasic
+            if not self.tm.deterministic_bt_node(btnode.behaviour_name):
+                # Create node
+                exogenous_node = ProbabilisticExplanationModelNode.node_from_bt(btnode,EXOGENOUS_CATEGORY)
+                nodes[exogenous_node.id] = exogenous_node
+                self.exogenouses[btnode_id] = exogenous_node.id
+                graph.add_node(exogenous_node.id)
+
+                # Add edge
+                graph.add_edge(exogenous_node.id,returns[btnode.id])
+
+        return graph
+
+
+    def add_states_to_graph(
+            self,
+            graph:nx.DiGraph,
+            nodes:Dict[str,ExplanationModelNode],
+            executions:dict[str,str],
+            returns:dict[str,str],
+            temporal_state_vars:dict[str,list],
+            state_var_names:dict[str,str]
+        ) -> nx.DiGraph:
+        explanation_graph = super().add_states_to_graph(graph,nodes,executions,returns,temporal_state_vars,state_var_names)
+
+        _,env_outputs = self.calculate_environment_inputs_outputs()
+
+        # Link exogenous nodes to output state variables for BT nodes
+        for btnode_id in self.exogenouses:
+            behaviour:LeafNode = self.em.btnodes[btnode_id].behaviour
+            output_vars = behaviour.output_variables() + env_outputs[btnode_id]
+
+        for output_var in output_vars:
+            temporal_output_var = temporal_state_vars[output_var][self.btnode_times[btnode_id]+1]
+            explanation_graph.add_edge(self.exogenouses[btnode_id],temporal_output_var)
+
+        # TODO - what about new exogenous variables for inherently stochastic state variables?
+
+        return explanation_graph
+
+    '''
+    VARIABLE RANGES
+    '''
+    def calculate_ranges(self) -> Dict[str,VarRange]:
+        ranges = super().calculate_ranges()
+
+        # Calculate ranges for exogenous variables
+        for btnode_id in self.exogenouses:
+            exogenous_node:ExplanationModelNode = self.nodes[self.exogenouses[btnode_id]]
+            ranges[exogenous_node.id] = NormalisedFloatRange()
+
+        return ranges
+
 
     '''
     CAUSAL MODELS
@@ -68,31 +165,36 @@ class ProbabilisticExplanationModel(ExplanationModel):
 
     
     def build_return_node(self, xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
-        def func(state: State, model_state: dict) -> py_trees.common.Status:
+        def deterministic_func(state: State, model_state: dict) -> py_trees.common.Status:
             return self.return_function(xnode.id, model_state, state)
+
+        def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
+            # TODO - needs to draw logic from task model using the value of the associated exogenous node
+            raise NotImplementedError
         
         # Probabilistic
         node_name = self.em.btnodes[xnode.btnode_id].behaviour_name
         if not self.tm.deterministic_bt_node(node_name):
             # Node is probabilistic
-            deterministic = False
-            cpd_values = self.tm.stochastic_bt_node_return_cpd(bt_node=node_name)
+            deterministic = False 
+            node_func = probabilistic_func
         else:
             # Node is deterministic
             deterministic = True
-            cpd_values = None
+            node_func = deterministic_func
 
         return ProbabilisticCausalNode(
             name=xnode.id,
             values=self.var_ranges[xnode.id].values,
             value=None,
-            func=func,
+            func=node_func,
             category=RETURN_CATEGORY,
             deterministic=deterministic,
-            cpd_values=cpd_values
         )
 
     def build_state_var_node(self, xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
+        # TODO: Update for logic with exogenous nodes
+
         deterministic_state_var = self.tm.determinstic_state_variable(xnode.name)
         state_var_name = self.state_var_names[xnode.name]
 
@@ -146,6 +248,22 @@ class ProbabilisticExplanationModel(ExplanationModel):
             cpd_values=cpd_values
         )
 
+    def build_exogenous_node(self, xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
+        def func(seed: int) -> bool:
+            hash_bytes = hashlib.sha256(f"{seed}-{xnode.id}".encode("utf-8")).digest()
+            combined_seed = int.from_bytes(hash_bytes,byteorder="big")
+            rng = random.Random(combined_seed)
+            return rng.random()
+        
+        return ProbabilisticCausalNode(
+            name=xnode.id,
+            values=self.var_ranges[xnode.id].values,
+            value=None,
+            func=func,
+            category=EXOGENOUS_CATEGORY,
+            deterministic=False,
+        )
+
     def create_causal_model(self) -> ProbabilisticCausalModel:
         cm = ProbabilisticCausalModel(self.tm,self.ros_node)
 
@@ -158,6 +276,8 @@ class ProbabilisticExplanationModel(ExplanationModel):
                 cnode = self.build_return_node(xnode)
             elif xnode.category == STATE_CATEGORY:
                 cnode = self.build_state_var_node(xnode)
+            elif xnode.category == EXOGENOUS_CATEGORY:
+                cnode = self.build_exogenous_node(xnode)
             else:
                 # Oops, shouldn't be here
                 raise ValueError(f"Unrecognised node category {xnode.category}")

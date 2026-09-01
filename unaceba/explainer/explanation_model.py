@@ -16,6 +16,8 @@ RETURN_CATEGORY = "Return"
 STATE_CATEGORY = "State"
 
 class ExplanationModelNode:
+    allowed_bt_categories = [EXECUTION_CATEGORY,RETURN_CATEGORY]
+
     def __init__(self,node_id:str,node_name:str,category:str,btnode_id:str=None,var_name:str=None,time_index:int=None):
         self.id = node_id
         self.name = node_name
@@ -29,7 +31,7 @@ class ExplanationModelNode:
         node_id = f"{category}_{btnode.id}"
         node_name = f"{category}_{btnode.name}"
 
-        if category not in [EXECUTION_CATEGORY,RETURN_CATEGORY]:
+        if category not in cls.allowed_bt_categories:
             raise ValueError(f"Invalid category {category} for node {btnode}")
 
         return cls(node_id,node_name,category,btnode_id=btnode.id)
@@ -69,22 +71,19 @@ class ExplanationModel:
         self.probabilistic = probabilistic
         self.ros_node = ros_node
 
+        self.init_model_dictionaries()
+
         # Create explanation model structure
-        self.nodes:Dict[str,ExplanationModelNode] = {}
-        self.executions:Dict[str,str] = {}
-        self.returns:Dict[str,str] = {}
         self.explanation_graph = self.create_graph_from_bt(
-            nodes=self.nodes,
-            executions=self.executions,
-            returns=self.returns
-        )
+                    nodes=self.nodes,
+                    executions=self.executions,
+                    returns=self.returns
+                )
 
         # Calculate the mapping from btnode to time
         self.btnode_times = self.assign_times_to_bt_nodes()
 
         # Add temporal versions of state variables
-        self.temporal_state_vars:Dict[str,list] = {}
-        self.state_var_names:Dict[str,str] = {}
         self.explanation_graph = self.add_states_to_graph(
             graph=self.explanation_graph,
             nodes=self.nodes,
@@ -106,6 +105,20 @@ class ExplanationModel:
         self.cm = self.create_causal_model()
 
         #self.visualise_explanation_graph()
+
+    '''
+    INITIALISATION
+    '''
+    def init_model_dictionaries(self):
+        # Model Structure
+        self.nodes:Dict[str,ExplanationModelNode] = {}
+        self.executions:Dict[str,str] = {}
+        self.returns:Dict[str,str] = {}
+
+        # Temporal Versions
+        self.temporal_state_vars:Dict[str,list] = {}
+        self.state_var_names:Dict[str,str] = {}
+        
 
     '''
     DEBUGGING

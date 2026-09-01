@@ -12,5 +12,3 @@ class ProbabilisticExplainer(Explainer):
         # We begin by reducing the search space to only the ancestors to the node in question
         search_space = self.calculate_search_space(query=query)
         search_graph = self.reduce_graph(query,search_space)
-
-        self.visualise_graph(search_graph)
