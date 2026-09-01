@@ -19,6 +19,23 @@ class ProbabilisticTaskModel(TaskModel):
         Returns True if the return function or the values of output variables of a bt leaf node are stochastic in any way
         '''
         raise NotImplementedError
+
+    def stochastic_state_var_func(self,state_variable:str,bt_node:str=None) -> callable:
+        '''
+        Given a state variable and, optionally, a parent BT node, return the function for that variable
+
+        Case 1: bt_node = None, state variable value is conditioned only on other state variables
+        Case 2: bt_node is not None, state variable value is also conditioned on the execution of the bt_node
+        '''
+        raise NotImplementedError
+
+    def stochastic_bt_node_return_func(self,bt_node:str) -> callable:
+        '''
+        Given a BT node name, return the return function of that node
+        '''
+        raise NotImplementedError
+    
+    # TODO: Remove CPD interface, it is old
     
     def stochastic_state_variable_cpd(self,state_variable:str,bt_node:str=None) -> np.ndarray:
         '''

@@ -169,8 +169,7 @@ class ProbabilisticExplanationModel(ExplanationModel):
             return self.return_function(xnode.id, model_state, state)
 
         def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
-            # TODO - needs to draw logic from task model using the value of the associated exogenous node
-            raise NotImplementedError
+            return self.tm.stochastic_bt_node_return_func(self.em.btnodes[xnode.btnode_id].behaviour_name)
         
         # Probabilistic
         node_name = self.em.btnodes[xnode.btnode_id].behaviour_name
@@ -219,11 +218,11 @@ class ProbabilisticExplanationModel(ExplanationModel):
             if deterministic_parent and deterministic_state_var:
                 # Node is deterministic
                 deterministic = True
-                cpd_values = None
+                node_func = func
             else:
                 # Node is probabilistic
                 deterministic = False
-                cpd_values = self.tm.stochastic_state_variable_cpd(state_var_name,parent_node_name)
+                node_func = self.tm.stochastic_state_var_func(state_var_name,parent_node_name)
         else:
             # The value of the variable depends entirely on the state
             func=self.tm.function_dict[self.state_var_names[xnode.id]]
@@ -231,21 +230,20 @@ class ProbabilisticExplanationModel(ExplanationModel):
             if deterministic_state_var:
                 # Node is deterministic
                 deterministic = True
-                cpd_values = None
+                node_func = func
             else:
                 # Node is probabilistic
                 deterministic = False
-                cpd_values = self.tm.stochastic_state_variable_cpd(state_var_name)
+                node_func = self.tm.stochastic_state_var_func(state_var_name)
 
 
         return ProbabilisticCausalNode(
             name=xnode.name,
             values=self.var_ranges[xnode.id].values,
             value=None,
-            func=func,
+            func=node_func,
             category=STATE_CATEGORY,
             deterministic=deterministic,
-            cpd_values=cpd_values
         )
 
     def build_exogenous_node(self, xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
