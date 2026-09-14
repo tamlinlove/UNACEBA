@@ -42,6 +42,10 @@ class ExplanationModelNode:
         node_name = f"{var}_t{index}"
 
         return cls(node_id,node_name,STATE_CATEGORY,var_name=var,time_index=index)
+
+    def __str__(self):
+        # TODO: This could be more sophisticated if necessary
+        return f"Node {self.name} ({self.id}) - category {self.category}"
     
     '''
     UTILS

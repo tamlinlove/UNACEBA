@@ -20,7 +20,13 @@ class ProbabilisticTaskModel(TaskModel):
         '''
         raise NotImplementedError
 
-    def stochastic_state_var_func(self,state_variable:str,bt_node:str=None) -> callable:
+    def stochastic_state_var_func(
+            self,
+            state_variable:str,
+            state_variable_id:str,
+            bt_node:str=None,
+            bt_node_execution_var:str=None
+        ) -> callable:
         '''
         Given a state variable and, optionally, a parent BT node, return the function for that variable
 

@@ -126,9 +126,9 @@ class ProbabilisticExplanationModel(ExplanationModel):
             behaviour:LeafNode = self.em.btnodes[btnode_id].behaviour
             output_vars = behaviour.output_variables() + env_outputs[btnode_id]
 
-        for output_var in output_vars:
-            temporal_output_var = temporal_state_vars[output_var][self.btnode_times[btnode_id]+1]
-            explanation_graph.add_edge(self.exogenouses[btnode_id],temporal_output_var)
+            for output_var in output_vars:
+                temporal_output_var = temporal_state_vars[output_var][self.btnode_times[btnode_id]+1]
+                explanation_graph.add_edge(self.exogenouses[btnode_id],temporal_output_var)
 
         # TODO - what about new exogenous variables for inherently stochastic state variables?
 
@@ -165,20 +165,23 @@ class ProbabilisticExplanationModel(ExplanationModel):
 
     
     def build_return_node(self, xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
-        def deterministic_func(state: State, model_state: dict) -> py_trees.common.Status:
-            return self.return_function(xnode.id, model_state, state)
-
-        def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
-            return self.tm.stochastic_bt_node_return_func(self.em.btnodes[xnode.btnode_id].behaviour_name)
-        
         # Probabilistic
         node_name = self.em.btnodes[xnode.btnode_id].behaviour_name
         if not self.tm.deterministic_bt_node(node_name):
             # Node is probabilistic
+
+            def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
+                # TODO: Update call signature
+                return self.tm.stochastic_bt_node_return_func(self.em.btnodes[xnode.btnode_id].behaviour_name)
+
             deterministic = False 
             node_func = probabilistic_func
         else:
             # Node is deterministic
+
+            def deterministic_func(state: State, model_state: dict) -> py_trees.common.Status:
+                return self.return_function(xnode.id, model_state, state)
+
             deterministic = True
             node_func = deterministic_func
 
@@ -192,8 +195,6 @@ class ProbabilisticExplanationModel(ExplanationModel):
         )
 
     def build_state_var_node(self, xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
-        # TODO: Update for logic with exogenous nodes
-
         deterministic_state_var = self.tm.determinstic_state_variable(xnode.name)
         state_var_name = self.state_var_names[xnode.name]
 
@@ -222,7 +223,14 @@ class ProbabilisticExplanationModel(ExplanationModel):
             else:
                 # Node is probabilistic
                 deterministic = False
-                node_func = self.tm.stochastic_state_var_func(state_var_name,parent_node_name)
+                exogenous_parent = self.parents[xnode.name][parent_cats.index(EXOGENOUS_CATEGORY)]
+                node_func = self.tm.stochastic_state_var_func(
+                    state_variable=state_var_name,
+                    state_variable_id=xnode.id,
+                    exogenous_variable=exogenous_parent,
+                    bt_node=parent_node_name,
+                    bt_node_execution_var=execution_parent
+                )
         else:
             # The value of the variable depends entirely on the state
             func=self.tm.function_dict[self.state_var_names[xnode.id]]
@@ -234,7 +242,11 @@ class ProbabilisticExplanationModel(ExplanationModel):
             else:
                 # Node is probabilistic
                 deterministic = False
-                node_func = self.tm.stochastic_state_var_func(state_var_name)
+                node_func = self.tm.stochastic_state_var_func(
+                    state_variable=state_var_name,
+                    state_variable_id=xnode.id,
+                    exogenous_variable=exogenous_parent
+                )
 
 
         return ProbabilisticCausalNode(
