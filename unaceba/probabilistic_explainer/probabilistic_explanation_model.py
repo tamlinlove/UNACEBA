@@ -151,6 +151,13 @@ class ProbabilisticExplanationModel(ExplanationModel):
     '''
     CAUSAL MODELS
     '''
+    def can_intervene(self,node:str) -> bool:
+        if self.nodes[node].category == EXOGENOUS_CATEGORY:
+            # Cannot intervene on exogenous variables, they are initialised differently (i.e. during Monte Carlo search)
+            return False
+        else:
+            return super().can_intervene(node)
+
     def build_execution_node(self,xnode:ExplanationModelNode) -> ProbabilisticCausalNode:
         def func(state: State, model_state: dict) -> bool:
             return self.execution_function(node_id=xnode.id,explanation_model_vals=model_state)
