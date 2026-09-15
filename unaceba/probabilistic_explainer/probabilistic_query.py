@@ -8,7 +8,9 @@ class ProbabilisticQuery(Query):
     def __init__(self, foils, explanation_model, model_state):
         super().__init__(foils, explanation_model, model_state)
 
-    def satisfies_query(self, new_model_state:Dict[str,ModelStateValue], rounding = True) -> tuple[bool,float]:
+    '''
+    # NOTE: Old, may delete whole class and refactor
+    def satisfies_query(self, new_model_state:Dict[str], rounding = True) -> tuple[bool,float]:
         # NOTE: For now we assume there is only one foil variable
         # TODO: Implement logic for multiple foil variables - requires handling join probability distributions
 
@@ -33,3 +35,4 @@ class ProbabilisticQuery(Query):
             if foil_var_val not in self.foils[foil_var]:
                 return False
             return True
+    '''

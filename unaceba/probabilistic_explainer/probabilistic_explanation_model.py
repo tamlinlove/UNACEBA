@@ -309,8 +309,11 @@ class ProbabilisticExplanationModel(ExplanationModel):
     '''
     LOADING
     '''
+    '''
+    #NOTE: Commenting out to remove modelstatevalue, likely will delete
     def model_state_at_timestep(self, timestep_tick = None, timestep_time = None):
         model_state = super().model_state_at_timestep(timestep_tick, timestep_time)
         for var in model_state:
             model_state[var] = ModelStateValue(model_state[var])
         return model_state
+    '''
