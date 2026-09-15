@@ -19,7 +19,8 @@ class Explainer:
     def explain(
             self,
             query:Query,
-            max_depth:int=1
+            max_depth:int=1,
+            **kwargs
     ) -> List[Explanation]:
         # We begin by reducing the search space to only the ancestors to the node in question
         search_space = self.calculate_search_space(query=query)
@@ -34,7 +35,7 @@ class Explainer:
         # Test interventions to generate explanations, starting with one variable at a time
         explanations:List[Explanation] = []
         for d in range(max_depth):
-            new_exps = self.explain_to_depth(query,search_space,search_graph,depth=d+1)
+            new_exps = self.explain_to_depth(query,search_space,search_graph,depth=d+1,**kwargs)
 
             explanations += new_exps
 
@@ -48,7 +49,8 @@ class Explainer:
             query:Query,
             search_space:dict[str,list],
             search_graph:nx.DiGraph,
-            depth:int=1
+            depth:int=1,
+            **kwargs
     ) -> List[Explanation]:
         # Determine all possible intervention combinations
         search_combos = self.generate_combinations(search_space,depth)
