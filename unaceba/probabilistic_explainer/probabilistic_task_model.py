@@ -35,7 +35,7 @@ class ProbabilisticTaskModel(TaskModel):
         '''
         raise NotImplementedError
 
-    def stochastic_bt_node_return_func(self,bt_node:str) -> callable:
+    def stochastic_bt_node_return_func(self,bt_node:str,bt_node_return_var:str) -> callable:
         '''
         Given a BT node name, return the return function of that node
         '''
