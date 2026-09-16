@@ -178,8 +178,10 @@ class ProbabilisticExplanationModel(ExplanationModel):
             # Node is probabilistic
 
             def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
-                # TODO: Update call signature
-                return self.tm.stochastic_bt_node_return_func(self.em.btnodes[xnode.btnode_id].behaviour_name)
+                return self.tm.stochastic_bt_node_return_func(
+                    bt_node=self.em.btnodes[xnode.btnode_id].behaviour_name,
+                    bt_node_return_var=self.returns[xnode.btnode_id]
+                )
 
             deterministic = False 
             node_func = probabilistic_func
