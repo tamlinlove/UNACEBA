@@ -176,11 +176,15 @@ class ProbabilisticExplanationModel(ExplanationModel):
         node_name = self.em.btnodes[xnode.btnode_id].behaviour_name
         if not self.tm.deterministic_bt_node(node_name):
             # Node is probabilistic
+            return_var = self.returns[xnode.btnode_id]
+            parent_cats = [self.nodes[parent].category for parent in self.parents[return_var]]
+            exogenous_parent = self.parents[return_var][parent_cats.index(EXOGENOUS_CATEGORY)]
 
             def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
                 return self.tm.stochastic_bt_node_return_func(
                     bt_node=self.em.btnodes[xnode.btnode_id].behaviour_name,
-                    bt_node_return_var=self.returns[xnode.btnode_id]
+                    bt_node_return_var=return_var,
+                    exogenous_variable=exogenous_parent
                 )
 
             deterministic = False 
@@ -233,12 +237,16 @@ class ProbabilisticExplanationModel(ExplanationModel):
                 # Node is probabilistic
                 deterministic = False
                 exogenous_parent = self.parents[xnode.name][parent_cats.index(EXOGENOUS_CATEGORY)]
+
+                parent_state_var_names = [self.state_var_names[pnode] for pnode in self.parents[xnode.name] if pnode in self.state_var_names]
+
                 node_func = self.tm.stochastic_state_var_func(
                     state_variable=state_var_name,
                     state_variable_id=xnode.id,
                     exogenous_variable=exogenous_parent,
                     bt_node=parent_node_name,
-                    bt_node_execution_var=execution_parent
+                    bt_node_execution_var=execution_parent,
+                    bt_node_inputs=parent_state_var_names,
                 )
         else:
             # The value of the variable depends entirely on the state
