@@ -42,3 +42,41 @@ def diff_dicts(dict1: dict, dict2: dict) -> str:
         return "None"
 
     return "; ".join(changes)
+
+def select_from_distribution(probs, possible_keys, exogenous_variable):
+    """
+    Deterministically pick a key from a probability distribution using
+    inverse-CDF sampling.
+
+    probs: dict mapping key -> probability (keys with 0 probability may be omitted)
+    possible_keys: ordered sequence of all possible keys; its order defines the CDF
+    exogenous_variable: float in [0, 1]
+    """
+    if not 0 <= exogenous_variable <= 1:
+        raise ValueError("exogenous_variable must be between 0 and 1")
+
+    unknown = set(probs) - set(possible_keys)
+    if unknown:
+        raise ValueError(f"Keys in probs not found in possible_keys: {unknown}")
+
+    # Missing keys get probability 0
+    ordered = [(k, probs.get(k, 0.0)) for k in possible_keys]
+    total = sum(p for _, p in ordered)
+    if total <= 0:
+        raise ValueError("Probabilities must have a positive sum")
+
+    # Scale u by the total so small floating-point errors in the sum don't matter
+    threshold = exogenous_variable * total
+
+    cumulative = 0.0
+    last_valid = None
+    for key, p in ordered:
+        if p <= 0:
+            continue
+        last_valid = key
+        cumulative += p
+        if threshold < cumulative:
+            return key
+
+    # Reached only if threshold == total (e.g. u = 1.0) or due to rounding
+    return last_valid
