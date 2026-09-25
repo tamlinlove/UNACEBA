@@ -36,6 +36,12 @@ class ProbabilisticExplainer(Explainer):
         search_combos = self.generate_combinations(search_space,depth)
 
         explanations:List[ProbabilisticCounterfactualExplanation] = []
+
+        # DEBUG
+        debug_var = "butter/area_t0"
+        debug_val = "used"
+        search_combos = [{debug_var:debug_val}]
+
         for combo in search_combos:
 
             # Keep track of satisfaction rate and individual outcomes for each sample
@@ -65,6 +71,8 @@ class ProbabilisticExplainer(Explainer):
             # For now we can assume a fixed threshold of 0.8, but this will change later
 
             print(f"For combo {combo}, satisfaction rate: {satisfaction_rate}")
+            for outcome in sample_outcomes:
+                print(outcome)
             if satisfaction_rate != 0 and satisfaction_rate != 1:
                 for outcome in sample_outcomes:
                     print(outcome)

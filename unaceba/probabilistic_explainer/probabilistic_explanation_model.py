@@ -179,16 +179,15 @@ class ProbabilisticExplanationModel(ExplanationModel):
             return_var = self.returns[xnode.btnode_id]
             parent_cats = [self.nodes[parent].category for parent in self.parents[return_var]]
             exogenous_parent = self.parents[return_var][parent_cats.index(EXOGENOUS_CATEGORY)]
-
-            def probabilistic_func(state:State, model_state: dict) -> py_trees.common.Status:
-                return self.tm.stochastic_bt_node_return_func(
-                    bt_node=self.em.btnodes[xnode.btnode_id].behaviour_name,
-                    bt_node_return_var=return_var,
-                    exogenous_variable=exogenous_parent
-                )
+            execution_parent = self.parents[xnode.id][parent_cats.index(EXECUTION_CATEGORY)]
 
             deterministic = False 
-            node_func = probabilistic_func
+            node_func = self.tm.stochastic_bt_node_return_func(
+                bt_node=self.em.btnodes[xnode.btnode_id].behaviour_name,
+                bt_node_return_var=return_var,
+                execution_variable=execution_parent,
+                exogenous_variable=exogenous_parent
+            )
         else:
             # Node is deterministic
 
