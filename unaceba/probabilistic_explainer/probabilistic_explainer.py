@@ -52,6 +52,8 @@ class ProbabilisticExplainer(Explainer):
             satisfied_count = 0
             sample_outcomes = []
 
+            # TODO: Check if a probabilistic node is on the path and only then use the full number of samples
+
             for sample_i in range(samples):
                 # Sample the values of exogenous variables in the causal model
                 sampled_model_state = self.sample_exogenous_state(query.model_state,sample_index=sample_i)

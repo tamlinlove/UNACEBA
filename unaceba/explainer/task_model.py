@@ -100,7 +100,7 @@ class TaskModel:
         '''
         return self.var_funcs()[node](state)
     
-    def calculate_model_var_values(self,state:State):
+    def calculate_model_var_values(self,state:State,initial_state:bool=True):
         '''
         Given a state, calculate the values of the model variables defined by the task model
         '''

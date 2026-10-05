@@ -6,7 +6,13 @@ class State:
     Abstract interface for task states
     '''
 
-    def __init__(self,state_vars:list[str],var_ranges:Dict[str,VarRange],semantic_dict:dict[str,str],values:dict=None):
+    def __init__(
+            self,
+            state_vars:list[str],
+            var_ranges:Dict[str,VarRange]={},
+            semantic_dict:dict[str,str]={},
+            values:dict=None,
+        ):
         '''
         Construct a new State
 

@@ -627,7 +627,7 @@ class ExplanationModel:
 
         # Add initial timestep values for model variables
         initial_state = self.get_state_at_time(model_state,time=0)
-        model_var_vals = self.tm.calculate_model_var_values(initial_state)
+        model_var_vals = self.tm.calculate_model_var_values(initial_state,initial_state=True)
         for model_var in self.tm.model_only_variables:
             model_state = self.update_model_state(model_state,self.temporal_state_vars[model_var][0],model_var_vals[model_var])
     
