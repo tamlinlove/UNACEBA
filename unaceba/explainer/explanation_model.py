@@ -546,6 +546,14 @@ class ExplanationModel:
                                 temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
                                 old_temporal_var = self.temporal_state_vars[state_var][btnode_time]
                                 model_state = self.update_model_state(model_state,temporal_var,model_state[old_temporal_var])
+
+                    # If there are any variables in the task model only, they should also somehow be updated with access to the episodic memory
+                    task_model_state = self.tm.update_task_model_state(model_state,self.em,next_tick,next_time)
+                    for tmvar in task_model_state:
+                        temporal_var = self.temporal_state_vars[tmvar][btnode_time+1]
+                        model_state = self.update_model_state(model_state,temporal_var,task_model_state[tmvar])
+
+                    if self.em.btnodes[btnode_id].is_leaf():
                         latest_time = btnode_time+1
             else:
                 # Reset the BT
@@ -553,7 +561,7 @@ class ExplanationModel:
                 for btnode_id in update["update"]:
                     btnode_time = self.btnode_times[btnode_id]
                     # Step 1: Set state vars at t0 (or whichever node we start at) to their values at the last known time
-                    for state_var in self.tm.state_only_variables:
+                    for state_var in self.tm.state_only_variables+self.tm.model_only_variables:
                         latest_temporal_var = self.temporal_state_vars[state_var][latest_time]
                         new_temporal_var = self.temporal_state_vars[state_var][btnode_time]
                         model_state = self.update_model_state(model_state,new_temporal_var,model_state[latest_temporal_var])
@@ -627,10 +635,10 @@ class ExplanationModel:
 
         # Add initial timestep values for model variables
         initial_state = self.get_state_at_time(model_state,time=0)
-        model_var_vals = self.tm.calculate_model_var_values(initial_state,initial_state=True)
+        model_var_vals = self.tm.calculate_model_var_values(initial_state)
         for model_var in self.tm.model_only_variables:
             model_state = self.update_model_state(model_state,self.temporal_state_vars[model_var][0],model_var_vals[model_var])
-    
+
         return model_state
 
     '''

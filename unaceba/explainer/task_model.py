@@ -3,6 +3,7 @@ import py_trees
 from unaceba.task.state import State
 from unaceba.utils.variables import VarRange
 from unaceba.task.environment import Environment
+from unaceba.explainer.episodic_memory import EpisodicMemory
 
 from typing import Dict,List
 
@@ -100,12 +101,21 @@ class TaskModel:
         '''
         return self.var_funcs()[node](state)
     
-    def calculate_model_var_values(self,state:State,initial_state:bool=True):
+    def calculate_model_var_values(self,state:State):
         '''
         Given a state, calculate the values of the model variables defined by the task model
         '''
         raise NotImplementedError
+
     
+    '''
+    EPISODIC MEMORY
+    '''
+    def update_task_model_state(self,model_state:dict,em:EpisodicMemory,tick:int,time:int) -> dict:
+        '''
+        Given state, episodic memory and time, set appropriate values for the model-only variables
+        '''
+        raise NotImplementedError
     
     
     '''
