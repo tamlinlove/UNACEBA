@@ -219,8 +219,9 @@ class ProbabilisticExplanationModel(ExplanationModel):
             btnode:LeafNode = self.em.btnodes[self.nodes[execution_parent].btnode_id].behaviour
             
             def func(state: State, model_state: dict):
-                # Execute the BT
-                btnode.execute(state)
+                if model_state[execution_parent]:
+                    # Execute the BT node function only if the node is actually executed in the tree
+                    btnode.execute(state)
                 # Extract the variable
                 state_var = self.state_var_names[xnode.name]
                 return state.get_value(state_var)

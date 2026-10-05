@@ -40,6 +40,10 @@ class ProbabilisticExplainer(Explainer):
         # DEBUG
         debug_var = "butter/area_t0"
         debug_val = "used"
+
+        #debug_var = "first_look_t0"
+        #debug_val = False
+
         search_combos = [{debug_var:debug_val}]
 
         for combo in search_combos:
