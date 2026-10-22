@@ -23,7 +23,7 @@ class RosTask(Task):
         self.tick_sleep = tick_sleep
 
     # ------------------------------------------------------------------ #
-    #  Task setup                                                          #
+    #  Task setup                                                        #
     # ------------------------------------------------------------------ #
 
     def setup_state(self, **kwargs) -> State:
@@ -49,7 +49,7 @@ class RosTask(Task):
         raise NotImplementedError
 
     # ------------------------------------------------------------------ #
-    #  ROS helpers                                                         #
+    #  ROS helpers                                                       #
     # ------------------------------------------------------------------ #
 
     def _iter_ros_leaves(self):
