@@ -4,7 +4,7 @@ class VarRange:
     '''
     A class used to define the range of possible values of a variable
     '''
-    def __init__(self,allow_none:bool=False):
+    def __init__(self,allow_none:bool=False,**kwargs):
         '''
         Constructs a VarRange object
 

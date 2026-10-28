@@ -317,6 +317,58 @@ class ProbabilisticExplanationModel(ExplanationModel):
         return cm
 
     '''
+    PROBABILISTIC STUFF
+    '''
+    def causal_path(self,input_vars:list[str],output_vars:list[str]) -> list[str]:
+        G = self.explanation_graph
+
+        missing = [v for v in (*input_vars, *output_vars) if v not in G]
+        if missing:
+            raise ValueError(f"Variables not in explanation graph: {missing}")
+
+        # Everything reachable from any input (including the inputs themselves)
+        forward = set(input_vars)
+        for v in input_vars:
+            forward |= nx.descendants(G, v)
+
+        # Everything that can reach any output (including the outputs themselves)
+        backward = set(output_vars)
+        for v in output_vars:
+            backward |= nx.ancestors(G, v)
+
+        return list(forward & backward)
+
+    def probabilistic_path(self,input_vars:list[str],output_vars:list[str]) -> bool:
+        # First check the edge vars
+        for node in input_vars+output_vars:
+            xnode = self.nodes[node]
+            if xnode.category == STATE_CATEGORY:
+                deterministic = self.tm.determinstic_state_variable(xnode.name)
+            else:
+                deterministic = self.tm.deterministic_bt_node(self.em.btnodes[xnode.btnode_id].behaviour_name)
+            if not deterministic:
+                return True
+
+        # Need to check full path
+        causal_path = self.causal_path(input_vars=input_vars,output_vars=output_vars)
+        for node in causal_path:
+            xnode = self.nodes[node]
+            if xnode.category == STATE_CATEGORY:
+                deterministic = self.tm.determinstic_state_variable(xnode.name)
+            else:
+                deterministic = self.tm.deterministic_bt_node(self.em.btnodes[xnode.btnode_id].behaviour_name)
+            if not deterministic:
+                return True
+
+        # Full path checked, all deterministic
+        return False
+
+        
+
+    
+
+
+    '''
     LOADING
     '''
     '''

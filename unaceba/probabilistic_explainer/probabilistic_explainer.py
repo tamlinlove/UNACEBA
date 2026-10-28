@@ -38,13 +38,14 @@ class ProbabilisticExplainer(Explainer):
         explanations:List[ProbabilisticCounterfactualExplanation] = []
 
         # DEBUG
+        # TODO: Remove
         debug_var = "butter/area_t0"
         debug_val = "used"
 
         #debug_var = "first_look_t0"
         #debug_val = False
 
-        search_combos = [{debug_var:debug_val}]
+        #search_combos = [{debug_var:debug_val}]
 
         for combo in search_combos:
 
@@ -52,9 +53,16 @@ class ProbabilisticExplainer(Explainer):
             satisfied_count = 0
             sample_outcomes = []
 
-            # TODO: Check if a probabilistic node is on the path and only then use the full number of samples
+            # Check if a probabilistic node is on the path and only then use the full number of samples
+            probabiilistic_path = self.explanation_model.probabilistic_path(list(combo.keys()),query.foil_vars())
+            if probabiilistic_path:
+                # Path is probabilistic, need to run multiple samples
+                monte_carlo_num = samples
+            else:
+                # Path is deterministic, only need to run a single intervention propagation
+                monte_carlo_num = 1
 
-            for sample_i in range(samples):
+            for sample_i in range(monte_carlo_num):
                 # Sample the values of exogenous variables in the causal model
                 sampled_model_state = self.sample_exogenous_state(query.model_state,sample_index=sample_i)
 
@@ -76,12 +84,14 @@ class ProbabilisticExplainer(Explainer):
             # TODO : Decide ultimate explanation inclusion depending on thresholds or whatever and create a final explanation
             # For now we can assume a fixed threshold of 0.8, but this will change later
 
-            print(f"For combo {combo}, satisfaction rate: {satisfaction_rate}")
+            #print(f"For combo {combo}, satisfaction rate: {satisfaction_rate}")
+            '''
             for outcome in sample_outcomes:
                 print(outcome)
-            if satisfaction_rate != 0 and satisfaction_rate != 1:
+            '''
+            if satisfaction_rate != 0:
                 for outcome in sample_outcomes:
-                    print(outcome)
+                    print(combo, outcome)
 
         return explanations
 
