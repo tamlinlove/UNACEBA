@@ -6,7 +6,7 @@ from unaceba.task.environment import Environment
 from unaceba.bt.logger import Logger
 
 class Task:
-    def __init__(self,log_dir:str,log_file:str,**kwargs):
+    def __init__(self,log_dir:str,log_file:str,disable_logging:bool=False,**kwargs):
         # Setup blackboard
         self.board = py_trees.blackboard.Client(name="Board")
         self.board.register_key("state", access=py_trees.common.Access.WRITE)
@@ -24,8 +24,9 @@ class Task:
         self.tree = self.setup_tree(**kwargs)
 
         # Setup Logging
-        self.logger = Logger(self.tree,filename=f"{log_dir}/{log_file}")
-        self.tree.visitors.append(self.logger)
+        if not disable_logging:
+            self.logger = Logger(self.tree,filename=f"{log_dir}/{log_file}")
+            self.tree.visitors.append(self.logger)
 
     '''
     TASK SETUP
