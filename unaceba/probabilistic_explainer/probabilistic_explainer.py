@@ -96,7 +96,8 @@ class ProbabilisticExplainer(Explainer):
                 )
                 explanations.append(explanation)
 
-        print(explanations)
+        for explanation in explanations:
+            print(explanation)
         return explanations
 
     '''

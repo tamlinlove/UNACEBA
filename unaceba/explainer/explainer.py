@@ -41,7 +41,7 @@ class Explainer:
 
             if len(explanations) > 0:
                 break
-
+            
         return explanations
 
     def explain_to_depth(
