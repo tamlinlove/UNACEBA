@@ -2,6 +2,7 @@ from unaceba.explainer.explainer import Explainer
 from unaceba.probabilistic_explainer.probabilistic_explanation_model import ProbabilisticExplanationModel
 from unaceba.probabilistic_explainer.probabilistic_query import ProbabilisticQuery
 from unaceba.probabilistic_explainer.probabilistic_explanation import ProbabilisticCounterfactualExplanation
+from unaceba.utils.util import freeze
 
 import networkx as nx
 import copy
@@ -80,19 +81,22 @@ class ProbabilisticExplainer(Explainer):
                     "foils": counterfactual_foils
                 })
 
-            satisfaction_rate = satisfied_count / samples
+            satisfaction_rate = satisfied_count / monte_carlo_num
             # TODO : Decide ultimate explanation inclusion depending on thresholds or whatever and create a final explanation
             # For now we can assume a fixed threshold of 0.8, but this will change later
+            SATISFACTION_THRESHOLD = 0.8
 
-            #print(f"For combo {combo}, satisfaction rate: {satisfaction_rate}")
-            '''
-            for outcome in sample_outcomes:
-                print(outcome)
-            '''
-            if satisfaction_rate != 0:
-                for outcome in sample_outcomes:
-                    print(combo, outcome)
 
+            if satisfaction_rate >= SATISFACTION_THRESHOLD:
+                explanation = ProbabilisticCounterfactualExplanation(
+                    interventions=combo,
+                    foils= self.unique_foils([so["foils"] for so in sample_outcomes if so["satisfied"]]),
+                    model_state=query.model_state,
+                    satisfaction_rate=satisfaction_rate
+                )
+                explanations.append(explanation)
+
+        print(explanations)
         return explanations
 
     '''
@@ -111,6 +115,20 @@ class ProbabilisticExplainer(Explainer):
             new_state[var] = rng.uniform(0, 1)
 
         return new_state
+
+    '''
+    UTILITY
+    '''
+    @staticmethod
+    def unique_foils(foils):
+        seen = set()
+        unique = []
+        for foil in foils:
+            key = freeze(foil)
+            if key not in seen:
+                seen.add(key)
+                unique.append(foil)
+        return unique
 
         
 

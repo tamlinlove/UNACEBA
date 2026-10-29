@@ -80,3 +80,13 @@ def select_from_distribution(probs, possible_keys, exogenous_variable):
 
     # Reached only if threshold == total (e.g. u = 1.0) or due to rounding
     return last_valid
+
+def freeze(obj):
+    """Recursively convert an object into a hashable, comparable form."""
+    if isinstance(obj, dict):
+        return ("dict", frozenset((k, freeze(v)) for k, v in obj.items()))
+    if isinstance(obj, (list, tuple)):
+        return (type(obj).__name__, tuple(freeze(v) for v in obj))
+    if isinstance(obj, (set, frozenset)):
+        return ("set", frozenset(freeze(v) for v in obj))
+    return obj  # assumed hashable (str, int, None, ...)
