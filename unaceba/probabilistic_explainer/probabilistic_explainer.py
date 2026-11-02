@@ -35,6 +35,7 @@ class ProbabilisticExplainer(Explainer):
     ) -> List[ProbabilisticCounterfactualExplanation]:
         # Determine all possible intervention combinations
         search_combos = self.generate_combinations(search_space,depth)
+        print(f"Searching through {len(search_combos)} intervention assignments at depth {depth}")
 
         explanations:List[ProbabilisticCounterfactualExplanation] = []
 
@@ -84,7 +85,8 @@ class ProbabilisticExplainer(Explainer):
             satisfaction_rate = satisfied_count / monte_carlo_num
             # TODO : Decide ultimate explanation inclusion depending on thresholds or whatever and create a final explanation
             # For now we can assume a fixed threshold of 0.8, but this will change later
-            SATISFACTION_THRESHOLD = 0.8
+            #SATISFACTION_THRESHOLD = 0.8
+            SATISFACTION_THRESHOLD = 0.01
 
 
             if satisfaction_rate >= SATISFACTION_THRESHOLD:
@@ -96,8 +98,10 @@ class ProbabilisticExplainer(Explainer):
                 )
                 explanations.append(explanation)
 
+        i = 0
         for explanation in explanations:
-            print(explanation)
+            print(f"{i}: {explanation}")
+            i+=1
         return explanations
 
     '''
