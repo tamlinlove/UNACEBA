@@ -7,10 +7,10 @@ class ProbabilisticCounterfactualExplanation(CounterfactualExplanation):
             self, 
             interventions:dict[str], 
             foils:List[dict[str]], 
-            model_state:dict[str], 
+            model_state:dict[str],
             tick:int = None, 
             time:int = None, 
-            satisfaction_rate:float = 1.0
+            satisfaction_rate:float = 1.0,
         ):
         super().__init__(interventions, foils, model_state, tick, time)
 

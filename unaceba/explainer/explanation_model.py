@@ -122,6 +122,9 @@ class ExplanationModel:
         # Temporal Versions
         self.temporal_state_vars:Dict[str,list] = {}
         self.state_var_names:Dict[str,str] = {}
+
+        # Updates and Loading
+        self.var_updated:Dict[str,bool] = {}
         
 
     '''
@@ -485,9 +488,14 @@ class ExplanationModel:
     '''
     def update_model_state(self,model_state:dict,var:str,value) -> dict:
         model_state[var] = value
+        self.var_updated[var] = True
         return model_state
 
-    def model_state_at_timestep(self,timestep_tick:int=None,timestep_time:int=None) -> dict:
+    def reset_model_state_updates(self,model_state:dict,state_var:str):
+        for tvar in self.temporal_state_vars[state_var]:
+            self.var_updated[tvar] = False
+
+    def model_state_at_timestep(self,timestep_tick:int=None,timestep_time:int=None) -> dict[str]:
         # Handle None inputs
         if timestep_tick is None:
             # Assume last tick
@@ -499,6 +507,9 @@ class ExplanationModel:
         # Validation
         if not self.em.valid_timestep(timestep_tick,timestep_time):
             raise ValueError(f"Invalid timestep {timestep_tick}:{timestep_time} for file {self.em.filepath}")
+
+        # Tracking updates
+        self.var_updated = {variable:False for variable in self.explanation_nodes_ordered}
         
         # Start by setting the initial state
         model_state = self.initial_state()
@@ -546,7 +557,6 @@ class ExplanationModel:
                                 temporal_var = self.temporal_state_vars[state_var][btnode_time+1]
                                 old_temporal_var = self.temporal_state_vars[state_var][btnode_time]
                                 model_state = self.update_model_state(model_state,temporal_var,model_state[old_temporal_var])
-
                     # If there are any variables in the task model only, they should also somehow be updated with access to the episodic memory
                     task_model_state = self.tm.update_task_model_state(model_state,self.em,next_tick,next_time)
                     for tmvar in task_model_state:
@@ -564,6 +574,7 @@ class ExplanationModel:
                     for state_var in self.tm.state_only_variables+self.tm.model_only_variables:
                         latest_temporal_var = self.temporal_state_vars[state_var][latest_time]
                         new_temporal_var = self.temporal_state_vars[state_var][btnode_time]
+                        self.reset_model_state_updates(model_state=model_state,state_var=state_var)
                         model_state = self.update_model_state(model_state,new_temporal_var,model_state[latest_temporal_var])
 
                     # Step 2: Two cases, one where root status is Running and one where root status is Success/Failure
@@ -599,6 +610,26 @@ class ExplanationModel:
 
             if curr_time == timestep_time and curr_tick == timestep_tick:
                 found_time = True
+
+        # Update the values of temporal variables which have been "skipped"
+        for state_var in self.tm.state_only_variables + self.tm.model_only_variables:
+            tvars = self.temporal_state_vars[state_var]
+
+            # Indices of the temporal versions that have been updated
+            updated_idxs = [i for i, tvar in enumerate(tvars) if self.var_updated[tvar]]
+
+            # Need at least two updated versions for any to be "in between"
+            if len(updated_idxs) < 2:
+                continue
+
+            first, last = updated_idxs[0], updated_idxs[-1]
+
+            prev_updated = None
+            for tvar in tvars[first:last + 1]:
+                if self.var_updated[tvar]:
+                    prev_updated = tvar
+                else:
+                    self.update_model_state(model_state, tvar, model_state[prev_updated])
 
         return model_state
             
