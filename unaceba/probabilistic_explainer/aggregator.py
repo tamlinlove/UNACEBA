@@ -1,7 +1,7 @@
 import math
 from collections import defaultdict
 from dataclasses import dataclass, replace
-from typing import List, Optional
+from typing import Dict, List, Optional, Sequence
 
 from unaceba.utils.variables import ContinuousRange, DiscretisedRange, IntRange
 
@@ -22,7 +22,7 @@ class _Item:
     rate: float
     reasons: List[_Term]
     interventions: List[_Term]
-    n: int = 1    
+    n: int = 1
 
 
 class Aggregator:
@@ -30,7 +30,17 @@ class Aggregator:
     Merges ProbabilisticCounterfactualExplanations that differ only in
     (a) the time index of their variables ("x_t0", "x_t1" -> "x"), and/or
     (b) the intervention value.
+
+    The two merges do not commute in general, so the order is a parameter of
+    `aggregate`: `order=("values", "time")` merges values first, then time;
+    `order=("time", "values")` does the reverse. Stages left out of `order`
+    are not applied.
     """
+
+    VALUES = "values"
+    TIME = "time"
+    STAGES = (VALUES, TIME)
+    DEFAULT_ORDER = (TIME, VALUES)
 
     def __init__(self, explanation_model, targets, reasons, interventions,
                  foils, tick=None, time=None, satisfaction_rate=1.0):
@@ -72,20 +82,45 @@ class Aggregator:
     # Aggregation
     # ------------------------------------------------------------------
     @classmethod
+    def _check_order(cls, order: Sequence[str]) -> tuple:
+        order = tuple(order)
+        unknown = [s for s in order if s not in cls.STAGES]
+        if unknown:
+            raise ValueError(f"Unknown aggregation stage(s) {unknown}; choose from {cls.STAGES}")
+        if len(set(order)) != len(order):
+            raise ValueError(f"Each aggregation stage may appear at most once, got {order}")
+        return order
+
+    @classmethod
     def aggregate(cls, explanations, explanation_model,
-                  over_time: bool = True, over_values: bool = True) -> list:
+                  order: Sequence[str] = DEFAULT_ORDER) -> list:
+        """
+        order: the stages to apply, in sequence. Any subset/permutation of
+               ("values", "time"), e.g. ("time", "values") or ("values",).
+        """
+        order = cls._check_order(order)
         if not explanations:
             return []
+
+        stages = {
+            cls.VALUES: lambda its: cls._merge_values(its),
+            cls.TIME: lambda its: cls._merge_times(its, explanation_model),
+        }
         items = [cls._to_item(e) for e in explanations]
-        if over_values:                      # values first, so the time merge sees whole value sets
-            items = cls._merge_values(items)
-        if over_time:
-            items = cls._merge_times(items, explanation_model)
+        for stage in order:
+            items = stages[stage](items)
+
         return [
             cls(explanation_model, i.targets, i.reasons, i.interventions,
                 i.foils, i.tick, i.time, i.rate)
             for i in items
         ]
+
+    @classmethod
+    def aggregate_all_orders(cls, explanations, explanation_model) -> Dict[tuple, list]:
+        """Convenience: run every ordering of both stages, keyed by order tuple."""
+        orders = [cls.DEFAULT_ORDER, cls.DEFAULT_ORDER[::-1]]
+        return {o: cls.aggregate(explanations, explanation_model, order=o) for o in orders}
 
     @staticmethod
     def _to_item(e) -> _Item:
@@ -107,15 +142,24 @@ class Aggregator:
         ))
         return targets, foils, item.tick, item.time
 
-    # --- stage 1: merge intervention values ----------------------------
+    # --- stage "values": merge intervention values ---------------------
+    # Works whether or not the time stage has already run: terms that were
+    # merged over time carry their `times`, which become part of the key so
+    # that only items with identical time coverage are merged.
     @classmethod
     def _merge_values(cls, items: List[_Item]) -> List[_Item]:
         groups = defaultdict(list)
         for it in items:
             if len(it.interventions) == 1:   # merging several variables would imply a cross product
-                key = (cls._common_key(it),
-                       tuple(sorted((t.var, repr(t.values[0])) for t in it.reasons)),
-                       it.interventions[0].var)
+                iv = it.interventions[0]
+                key = (
+                    "values",
+                    cls._common_key(it),
+                    tuple(sorted(
+                        (t.var, tuple(t.times or ()), repr(t.values[0])) for t in it.reasons
+                    )),
+                    (iv.var, tuple(iv.times or ())),
+                )
             else:
                 key = ("keep", id(it))
             groups[key].append(it)
@@ -127,17 +171,21 @@ class Aggregator:
                 continue
             values = []
             for it in g:
-                v = it.interventions[0].values[0]
-                if v not in values:
-                    values.append(v)
+                for v in it.interventions[0].values:
+                    if v not in values:
+                        values.append(v)
+            first = g[0].interventions[0]
             out.append(replace(
                 g[0],
-                interventions=[_Term(g[0].interventions[0].var, values)],
+                interventions=[_Term(first.var, values, first.times)],
                 **cls._merged_stats(g),
             ))
         return out
 
-    # --- stage 2: merge time-shifted copies ----------------------------
+    # --- stage "time": merge time-shifted copies -----------------------
+    # Works whether or not the values stage has already run: the signature
+    # includes each intervention's full value set, so only items whose value
+    # sets coincide are merged.
     @classmethod
     def _time_shape(cls, item: _Item, model):
         """Time-independent signature of an item, or None if it can't be time-merged."""
@@ -192,7 +240,7 @@ class Aggregator:
                     g[0],
                     reasons=collapse(g, "reasons"),
                     interventions=collapse(g, "interventions"),
-                    **cls._merge_stats(g) if False else cls._merged_stats(g),
+                    **cls._merged_stats(g),
                 ))
         return out
 
